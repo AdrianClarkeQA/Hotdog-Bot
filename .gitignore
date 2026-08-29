@@ -1,0 +1,14 @@
+node_modules
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local state
+data/
+*.db
+*.db-journal
