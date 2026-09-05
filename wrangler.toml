@@ -1,0 +1,25 @@
+name = "discord-channel-archiver"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Sweep every 15 minutes.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# D1 database binding. Replace database_id after you create the DB
+# (wrangler d1 create archiver-db prints it).
+[[d1_databases]]
+binding = "DB"
+database_name = "archiver-db"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+# Non-secret config. GUILD_ID and ARCHIVE_CATEGORY_ID are safe to keep here.
+[vars]
+GUILD_ID = "REPLACE_WITH_YOUR_SERVER_ID"
+ARCHIVE_CATEGORY_ID = "REPLACE_WITH_YOUR_ARCHIVE_CATEGORY_ID"
+PRIVILEGED_ROLE_ID = "REPLACE_WITH_YOUR_ADMIN_ROLE_ID"
+
+# Secrets (set via `wrangler secret put NAME`, never commit these):
+#   DISCORD_TOKEN         - bot token
+#   DISCORD_PUBLIC_KEY    - app public key (for verifying interactions)
+#   DISCORD_APPLICATION_ID - application id (used by the register script only)
