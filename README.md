@@ -26,13 +26,24 @@ you can run them from a single admin channel.
 
 | Command | Effect |
 |---|---|
-| `/arc on <channel>` | Enable monitoring for a channel |
-| `/arc off <channel>` | Disable monitoring for a channel |
+| `/arc on <channel>` | Re-enable monitoring for a channel |
+| `/arc off <channel>` | Exclude a channel from archiving |
 | `/arc days <channel> <n>` | Set inactivity threshold (days) |
 | `/arc status [channel]` | Show one channel's config, or all |
 | `/arc all <on\|off>` | Global master switch |
 
-New channels default to enabled with a 30-day threshold once first configured.
+Every text and announcement channel is covered automatically, including ones
+created later, using `DEFAULT_DAYS` from `wrangler.toml` (30 unless changed).
+`/arc off` and `/arc days` store per-channel overrides. `/arc status` lists every
+covered channel; ones marked `(default)` have no override.
+
+Channels already in the archive category that the bot didn't put there are left
+alone, since it doesn't know where to restore them to.
+
+### Dry run
+With `DRY_RUN = "true"` in `wrangler.toml`, each sweep only logs what it would
+archive or restore. Run `npx wrangler tail`, wait for a sweep, check the list,
+`/arc off` anything you want kept, then set `DRY_RUN = "false"` and redeploy.
 
 ## Setup
 
