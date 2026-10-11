@@ -105,6 +105,24 @@ Copy the deployed Worker URL, then in the Developer Portal set
 **Interactions Endpoint URL** to that URL. Discord sends a verification PING;
 the Worker answers it automatically.
 
+#### Automatic deploys (GitHub Actions)
+`.github/workflows/deploy.yml` deploys on every push to `main` (or manually via
+**Actions → Deploy Botdog → Run workflow**). It also tags the commit with the
+version in `package.json` (e.g. `v1.1.0`) the first time that version deploys,
+so bump the version in `package.json` when you release a change.
+
+One-time setup: in the GitHub repo go to **Settings → Secrets and variables →
+Actions** and add:
+- `CLOUDFLARE_API_TOKEN` — create one in the Cloudflare dashboard under
+  **My Profile → API Tokens → Create Token**, using the **Edit Cloudflare
+  Workers** template. Add **Account → D1 → Edit** if a deploy fails with
+  a D1 permissions error.
+- `CLOUDFLARE_ACCOUNT_ID` — shown in the Cloudflare dashboard (Workers & Pages
+  overview, right-hand side).
+
+Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
+GitHub. D1 schema changes are still applied manually with `npm run db:init`.
+
 ### 9. Configure channels
 From your admin channel:
 ```

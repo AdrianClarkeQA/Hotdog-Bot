@@ -1,0 +1,55 @@
+name: Deploy Botdog
+
+# Deploys the Worker to Cloudflare on every push to main,
+# or manually from the Actions tab ("Run workflow").
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Never run two deploys at once; a newer push waits for the current one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write # needed to push the version tag
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # Installs the wrangler version pinned in package-lock.json,
+      # which wrangler-action then uses.
+      - run: npm ci
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      # Tags the commit with the version from package.json (e.g. v1.1.0)
+      # the first time that version is deployed.
+      - name: Tag release version
+        run: |
+          VERSION="v$(node -p "require('./package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null; then
+            echo "$VERSION already tagged, skipping."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$VERSION" -m "Botdog $VERSION"
+            git push origin "$VERSION"
+            echo "Tagged $VERSION"
+          fi
