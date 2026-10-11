@@ -7,8 +7,10 @@ import {
   setChannelEnabled,
   setChannelDays,
   setGlobalEnabled,
+  getGlobalEnabled,
   getChannelConfig,
   allConfigs,
+  defaultDays,
 } from "./db.js";
 
 function reply(content) {
@@ -55,22 +57,29 @@ export async function handleCommand(interaction, env) {
     }
     case "status": {
       const ch = opt(sub.options, "channel");
+      const fallback = defaultDays(env);
       if (ch) {
         const cfg = await getChannelConfig(env, ch);
-        if (!cfg) return reply(`<#${ch}> is not configured.`);
+        if (!cfg) return reply(`<#${ch}> — enabled (default), ${fallback}d, active.`);
         return reply(
           `<#${ch}> — ${cfg.enabled ? "enabled" : "disabled"}, ` +
             `${cfg.days}d, ${cfg.is_archived ? "currently archived" : "active"}.`
         );
       }
-      const all = await allConfigs(env);
-      if (all.length === 0) return reply("No channels configured yet.");
-      const lines = all.map(
+      const globalOn = await getGlobalEnabled(env);
+      const header =
+        `Global monitoring: **${globalOn ? "on" : "off"}**. ` +
+        `All text channels are monitored by default (${fallback}d).`;
+      const exceptions = (await allConfigs(env)).filter(
+        (c) => c.enabled === 0 || c.days !== fallback || c.is_archived === 1
+      );
+      if (exceptions.length === 0) return reply(`${header}\nNo exceptions set.`);
+      const lines = exceptions.map(
         (c) =>
           `<#${c.channel_id}> — ${c.enabled ? "on" : "off"}, ${c.days}d` +
           (c.is_archived ? ", archived" : "")
       );
-      return reply(lines.join("\n"));
+      return reply(`${header}\nExceptions:\n${lines.join("\n")}`);
     }
     case "all": {
       // /arc all <state:on|off>

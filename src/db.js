@@ -1,4 +1,16 @@
 // D1 access helpers. Keeps SQL in one place.
+//
+// The `channels` table holds exceptions only: every text channel is
+// monitored by default with DEFAULT_DAYS. A row exists when a channel has
+// been turned off, given a custom threshold, or archived by the bot.
+
+const FALLBACK_DAYS = 30;
+
+// Default inactivity threshold from the DEFAULT_DAYS var.
+export function defaultDays(env) {
+  const n = parseInt(env.DEFAULT_DAYS, 10);
+  return Number.isFinite(n) && n >= 1 ? n : FALLBACK_DAYS;
+}
 
 export async function getGlobalEnabled(env) {
   const row = await env.DB.prepare(
@@ -8,7 +20,10 @@ export async function getGlobalEnabled(env) {
 }
 
 export async function setGlobalEnabled(env, on) {
-  await env.DB.prepare("UPDATE settings SET global_enabled = ? WHERE id = 1")
+  await env.DB.prepare(
+    `INSERT INTO settings (id, global_enabled) VALUES (1, ?)
+     ON CONFLICT(id) DO UPDATE SET global_enabled = excluded.global_enabled`
+  )
     .bind(on ? 1 : 0)
     .run();
 }
@@ -19,21 +34,14 @@ export async function getChannelConfig(env, channelId) {
     .first();
 }
 
-export async function getEnabledChannels(env) {
-  const { results } = await env.DB.prepare(
-    "SELECT * FROM channels WHERE enabled = 1"
-  ).all();
-  return results ?? [];
-}
-
-// Upsert enable state, defaulting days to 30 for a brand-new channel.
+// Upsert enable state. A new row gets the default threshold.
 export async function setChannelEnabled(env, channelId, enabled) {
   await env.DB.prepare(
     `INSERT INTO channels (channel_id, enabled, days)
-     VALUES (?, ?, 30)
+     VALUES (?, ?, ?)
      ON CONFLICT(channel_id) DO UPDATE SET enabled = excluded.enabled`
   )
-    .bind(channelId, enabled ? 1 : 0)
+    .bind(channelId, enabled ? 1 : 0, defaultDays(env))
     .run();
 }
 
@@ -47,12 +55,17 @@ export async function setChannelDays(env, channelId, days) {
     .run();
 }
 
-// Record archive state + where the channel came from.
+// Record archive state + where the channel came from. Upserts, because
+// under the opt-out model most archived channels have no row yet.
 export async function markArchived(env, channelId, originalParentId) {
   await env.DB.prepare(
-    "UPDATE channels SET is_archived = 1, original_parent_id = ? WHERE channel_id = ?"
+    `INSERT INTO channels (channel_id, enabled, days, original_parent_id, is_archived)
+     VALUES (?, 1, ?, ?, 1)
+     ON CONFLICT(channel_id) DO UPDATE SET
+       is_archived = 1,
+       original_parent_id = excluded.original_parent_id`
   )
-    .bind(originalParentId, channelId)
+    .bind(channelId, defaultDays(env), originalParentId)
     .run();
 }
 
