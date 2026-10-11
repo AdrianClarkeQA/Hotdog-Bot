@@ -18,6 +18,12 @@ database_id = "3af5f901-b273-45c3-80ee-c92eb2a054b2"
 GUILD_ID = "693032229936431104"
 ARCHIVE_CATEGORY_ID = "1487464318642556968"
 PRIVILEGED_ROLE_ID = "693417843911557130"
+# Every text/announcement channel is covered by default with this threshold.
+# Use /arc off or /arc days to override individual channels.
+DEFAULT_DAYS = "30"
+# "true" = sweep only logs what it would archive/restore (watch with
+# `npx wrangler tail`). Set to "false" and redeploy to let it act.
+DRY_RUN = "true"
 
 # Secrets (set via `wrangler secret put NAME`, never commit these):
 #   DISCORD_TOKEN         - bot token

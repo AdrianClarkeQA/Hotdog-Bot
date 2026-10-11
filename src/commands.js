@@ -8,8 +8,12 @@ import {
   setChannelDays,
   setGlobalEnabled,
   getChannelConfig,
-  allConfigs,
+  defaultDays,
 } from "./db.js";
+import { effectiveChannels } from "./coverage.js";
+
+// Discord rejects messages over 2000 characters.
+const MAX_LEN = 2000;
 
 function reply(content) {
   return {
@@ -57,20 +61,32 @@ export async function handleCommand(interaction, env) {
       const ch = opt(sub.options, "channel");
       if (ch) {
         const cfg = await getChannelConfig(env, ch);
-        if (!cfg) return reply(`<#${ch}> is not configured.`);
+        if (!cfg) {
+          return reply(`<#${ch}> — on, ${defaultDays(env)}d (default).`);
+        }
         return reply(
-          `<#${ch}> — ${cfg.enabled ? "enabled" : "disabled"}, ` +
+          `<#${ch}> — ${cfg.enabled ? "on" : "off"}, ` +
             `${cfg.days}d, ${cfg.is_archived ? "currently archived" : "active"}.`
         );
       }
-      const all = await allConfigs(env);
-      if (all.length === 0) return reply("No channels configured yet.");
+      const all = await effectiveChannels(env);
+      if (all.length === 0) return reply("No text channels found.");
       const lines = all.map(
-        (c) =>
-          `<#${c.channel_id}> — ${c.enabled ? "on" : "off"}, ${c.days}d` +
-          (c.is_archived ? ", archived" : "")
+        ({ channel, cfg, enabled, days, isDefault }) =>
+          `<#${channel.id}> — ${enabled ? "on" : "off"}, ${days}d` +
+          (isDefault ? " (default)" : "") +
+          (cfg?.is_archived ? ", archived" : "")
       );
-      return reply(lines.join("\n"));
+      let out = "";
+      for (let i = 0; i < lines.length; i++) {
+        const more = `\n…and ${lines.length - i} more`;
+        if (out.length + lines[i].length + 1 + more.length > MAX_LEN) {
+          out += more;
+          break;
+        }
+        out += (out ? "\n" : "") + lines[i];
+      }
+      return reply(out);
     }
     case "all": {
       // /arc all <state:on|off>

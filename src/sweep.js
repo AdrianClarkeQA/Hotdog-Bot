@@ -1,7 +1,10 @@
-// Runs on the cron trigger. One pass over all monitored channels.
+// Runs on the cron trigger. One pass over every covered channel.
+// All text/announcement channels are covered by default; D1 rows override.
+// Set DRY_RUN = "true" in wrangler.toml to log decisions without moving anything.
 
-import { getGlobalEnabled, getEnabledChannels, markArchived, markRestored } from "./db.js";
-import { lastMessageTime, moveChannel, getChannel } from "./discord.js";
+import { getGlobalEnabled, markArchived, markRestored } from "./db.js";
+import { lastMessageTime, moveChannel } from "./discord.js";
+import { effectiveChannels } from "./coverage.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -11,37 +14,51 @@ export async function runSweep(env) {
     return;
   }
 
+  const dryRun = env.DRY_RUN === "true";
   const archiveId = env.ARCHIVE_CATEGORY_ID;
-  const channels = await getEnabledChannels(env);
+  const channels = await effectiveChannels(env);
   const now = Date.now();
+  if (dryRun) console.log(`DRY RUN: checking ${channels.length} channel(s), nothing will move.`);
 
-  for (const cfg of channels) {
+  for (const { channel, cfg, enabled, days } of channels) {
+    if (!enabled) continue;
+    const inArchive = channel.parent_id === archiveId;
+
+    // A channel sitting in the archive that the bot never archived (no row)
+    // has no known home to go back to, so leave it alone.
+    if (inArchive && !cfg) continue;
+
     try {
-      const channel = await getChannel(env, cfg.channel_id);
-      if (!channel || !channel.id) continue; // deleted channel
-
-      const last = await lastMessageTime(env, cfg.channel_id);
+      const last = await lastMessageTime(env, channel.id);
       // Empty channels: treat "now" as last activity so they aren't archived
       // purely for being empty. Adjust if you'd rather archive empties.
       const lastActive = last ?? now;
       const inactiveMs = now - lastActive;
-      const threshold = cfg.days * DAY_MS;
-      const inArchive = channel.parent_id === archiveId;
+      const threshold = days * DAY_MS;
+      const label = `#${channel.name} (${channel.id})`;
 
       if (!inArchive && inactiveMs >= threshold) {
         // Stale -> archive. Remember where it lived.
-        await moveChannel(env, cfg.channel_id, archiveId);
-        await markArchived(env, cfg.channel_id, channel.parent_id ?? null);
-        console.log(`Archived ${cfg.channel_id}`);
+        if (dryRun) {
+          console.log(`DRY RUN: would archive ${label} — ${Math.floor(inactiveMs / DAY_MS)}d idle, limit ${days}d`);
+          continue;
+        }
+        await moveChannel(env, channel.id, archiveId);
+        await markArchived(env, channel.id, channel.parent_id ?? null, days);
+        console.log(`Archived ${label}`);
       } else if (inArchive && inactiveMs < threshold) {
         // Activity while archived -> restore to original category.
         const dest = cfg.original_parent_id ?? null;
-        await moveChannel(env, cfg.channel_id, dest);
-        await markRestored(env, cfg.channel_id);
-        console.log(`Restored ${cfg.channel_id} -> ${dest}`);
+        if (dryRun) {
+          console.log(`DRY RUN: would restore ${label} -> ${dest}`);
+          continue;
+        }
+        await moveChannel(env, channel.id, dest);
+        await markRestored(env, channel.id);
+        console.log(`Restored ${label} -> ${dest}`);
       }
     } catch (err) {
-      console.error(`Channel ${cfg.channel_id} failed:`, err.message);
+      console.error(`Channel ${channel.id} failed:`, err.message);
       // Keep going; one bad channel shouldn't stop the sweep.
     }
   }
