@@ -36,13 +36,16 @@ export async function getChannel(env, channelId) {
   return rest(env, "GET", `/channels/${channelId}`);
 }
 
+// Decode a Discord snowflake ID into a creation timestamp (ms).
+export function snowflakeTime(id) {
+  return Number((BigInt(id) >> 22n) + 1420070400000n);
+}
+
 // Timestamp (ms) of the most recent message, or null if the channel is empty.
 export async function lastMessageTime(env, channelId) {
   const msgs = await rest(env, "GET", `/channels/${channelId}/messages?limit=1`);
   if (!Array.isArray(msgs) || msgs.length === 0) return null;
-  // Decode the snowflake: (id >> 22) + Discord epoch.
-  const id = BigInt(msgs[0].id);
-  return Number((id >> 22n) + 1420070400000n);
+  return snowflakeTime(msgs[0].id);
 }
 
 // Move a channel to a new category (parent). parentId null = no category.

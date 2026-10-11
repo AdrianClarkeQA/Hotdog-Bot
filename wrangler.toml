@@ -18,6 +18,8 @@ database_id = "3af5f901-b273-45c3-80ee-c92eb2a054b2"
 GUILD_ID = "693032229936431104"
 ARCHIVE_CATEGORY_ID = "1487464318642556968"
 PRIVILEGED_ROLE_ID = "693417843911557130"
+# Inactivity threshold (days) for every channel without a /arc days override.
+DEFAULT_DAYS = "30"
 
 # Secrets (set via `wrangler secret put NAME`, never commit these):
 #   DISCORD_TOKEN         - bot token

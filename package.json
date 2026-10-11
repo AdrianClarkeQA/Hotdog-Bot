@@ -7,8 +7,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "register": "node scripts/register-commands.js",
-    "db:init": "wrangler d1 execute archiver-db --file=./schema.sql",
-    "db:init:local": "wrangler d1 execute archiver-db --local --file=./schema.sql"
+    "db:init": "wrangler d1 execute DB --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute DB --local --file=./schema.sql"
   },
   "dependencies": {
     "discord-interactions": "^4.1.0"
