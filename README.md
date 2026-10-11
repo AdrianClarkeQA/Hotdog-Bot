@@ -9,7 +9,7 @@ Discord by a privileged role.
 Discord bots can't run persistently on Cloudflare (Workers have no gateway
 WebSocket), so this uses two Worker entry points instead:
 
-- **`scheduled()`** — a **cron trigger** fires every 15 minutes, checks each
+- **`scheduled()`** — a **cron trigger** fires once a day (03:00 UTC), checks each
   monitored channel's last-message timestamp, and archives stale channels /
   restores active ones.
 - **`fetch()`** — receives Discord slash-command **interactions** over HTTP,
@@ -129,5 +129,6 @@ so Discord can reach your machine.
   the sweep to one call per channel.
 - Restore accuracy depends on the stored `original_parent_id`, which is
   captured at archive time, so channels always return to where they were.
-- The 15-minute cron means archive/restore happens within ~15 min of crossing
-  the threshold, not instantly.
+- The daily cron means archive/restore happens within ~24 hours of crossing
+  the threshold (or of new activity in an archived channel), not instantly.
+  Change `crons` in `wrangler.toml` to adjust.

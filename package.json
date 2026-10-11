@@ -1,6 +1,6 @@
 {
   "name": "discord-channel-archiver",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Cloudflare Worker that auto-archives inactive Discord channels and restores them on activity.",
   "type": "module",
   "scripts": {
