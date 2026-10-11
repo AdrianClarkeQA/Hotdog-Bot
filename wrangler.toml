@@ -23,7 +23,7 @@ PRIVILEGED_ROLE_ID = "693417843911557130"
 DEFAULT_DAYS = "30"
 # "true" = sweep only logs what it would archive/restore (watch with
 # `npx wrangler tail`). Set to "false" and redeploy to let it act.
-DRY_RUN = "true"
+DRY_RUN = "false"
 
 # Secrets (set via `wrangler secret put NAME`, never commit these):
 #   DISCORD_TOKEN         - bot token
