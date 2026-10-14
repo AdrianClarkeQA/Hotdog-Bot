@@ -30,6 +30,7 @@ you can run them from a single admin channel.
 | `/arc off <channel>` | Exclude a channel from archiving |
 | `/arc days <channel> <n>` | Set inactivity threshold (days) |
 | `/arc status [channel]` | Show one channel's config, or all |
+| `/arc restore [channel]` | Move an archived channel back to its home category; with no channel, restores the one you type it in |
 | `/arc all <on\|off>` | Global master switch |
 
 Every text and announcement channel is covered automatically, including ones
@@ -37,8 +38,18 @@ created later, using `DEFAULT_DAYS` from `wrangler.toml` (30 unless changed).
 `/arc off` and `/arc days` store per-channel overrides. `/arc status` lists every
 covered channel; ones marked `(default)` have no override.
 
-Channels already in the archive category that the bot didn't put there are left
-alone, since it doesn't know where to restore them to.
+The daily sweep leaves alone any channel in the archive that it doesn't know a
+home for (moved there by hand and never restored) — use `/arc restore` on it
+once to set one.
+
+`/arc restore` can be run from any channel. Channels Botdog archived go back to
+the category they came from; if that category has since been deleted, the
+channel is moved out of the archive with no category. For a channel someone
+moved into the archive by hand, Botdog asks which category it belongs in,
+moves it there, and remembers that as its home — so the next restore (manual
+or automatic) needs no question. A restored
+channel gets a fresh inactivity window from the moment it's restored, so a
+quiet channel isn't swept straight back into the archive the next morning.
 
 ### Dry run
 With `DRY_RUN = "true"` in `wrangler.toml`, each sweep only logs what it would
@@ -121,7 +132,17 @@ Actions** and add:
   overview, right-hand side).
 
 Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
-GitHub. D1 schema changes are still applied manually with `npm run db:init`.
+GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+
+### Upgrading to v1.2.0
+v1.2.0 adds a `restored_at` column. Before the v1.2.0 code goes live, run once:
+```bash
+npm run db:migrate
+```
+Then re-register commands so `/arc restore` appears in Discord:
+```bash
+DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+```
 
 ### 9. Configure channels
 From your admin channel:
