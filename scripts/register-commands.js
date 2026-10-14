@@ -57,6 +57,20 @@ const command = {
     },
     {
       type: SUB,
+      name: "restore",
+      description: "Move an archived channel back to its original category",
+      options: [
+        {
+          type: CHANNEL,
+          name: "channel",
+          description: "Archived channel to restore",
+          required: true,
+          channel_types: [0, 5], // text + announcement, matching what the sweep archives
+        },
+      ],
+    },
+    {
+      type: SUB,
       name: "all",
       description: "Global master switch",
       options: [

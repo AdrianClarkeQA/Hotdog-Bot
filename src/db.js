@@ -60,11 +60,14 @@ export async function markArchived(env, channelId, originalParentId, days) {
     .run();
 }
 
+// restored_at gives a restored channel a fresh inactivity window, so a
+// quiet channel restored by hand isn't swept straight back into the archive.
 export async function markRestored(env, channelId) {
   await env.DB.prepare(
-    "UPDATE channels SET is_archived = 0, original_parent_id = NULL WHERE channel_id = ?"
+    `UPDATE channels SET is_archived = 0, original_parent_id = NULL, restored_at = ?
+     WHERE channel_id = ?`
   )
-    .bind(channelId)
+    .bind(Date.now(), channelId)
     .run();
 }
 
