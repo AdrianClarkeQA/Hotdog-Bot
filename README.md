@@ -1,7 +1,7 @@
 # Discord Channel Archiver
 
 A Cloudflare Worker that automatically archives inactive Discord channels and
-restores them when activity returns. Config is per-channel, controlled from
+restores them when activity returns, and posts planned gaming sessions. Config is per-channel, controlled from
 Discord by a privileged role.
 
 ## How it works
@@ -21,7 +21,7 @@ which stays comfortably inside Discord's rate limits.
 
 ## Commands
 
-All commands require the privileged role and target a channel explicitly, so
+All `/arc` commands require the privileged role and target a channel explicitly, so
 you can run them from a single admin channel.
 
 | Command | Effect |
@@ -50,6 +50,28 @@ moves it there, and remembers that as its home — so the next restore (manual
 or automatic) needs no question. A restored
 channel gets a fresh inactivity window from the moment it's restored, so a
 quiet channel isn't swept straight back into the archive the next morning.
+
+## Gaming sessions
+
+| Command | Who | Effect |
+|---|---|---|
+| `/gaming <game> <date> <time>` | Everyone | Posts a planned session in the gaming channel |
+| `/games remove <game>` | Privileged role | Removes a game from the saved list |
+
+`/gaming` posts in the channel set by `GAMING_CHANNEL_ID`, wherever it's typed:
+
+> 🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)
+> Suggested by @Ade
+
+- **Game**: pick from the saved list or type a new name. The list fills itself:
+  every game posted is saved. Most-used games are suggested first; matching is
+  case-insensitive, so "helldivers 2" reuses the saved "Helldivers 2".
+- **Date**: `DD/MM/YYYY` (or `DD/MM` for the next occurrence). **Time**: 24-hour
+  `HH:MM`. Both are read as UK time (`TIMEZONE` in `wrangler.toml`), and
+  Discord shows each viewer the session in their own timezone.
+- Past times, impossible dates and dates over a year away are rejected with a
+  message only the poster sees.
+- The post never pings anyone, even if a game name contains `@everyone`.
 
 ### Dry run
 With `DRY_RUN = "true"` in `wrangler.toml`, each sweep only logs what it would
@@ -102,7 +124,7 @@ npx wrangler secret put DISCORD_TOKEN
 npx wrangler secret put DISCORD_PUBLIC_KEY
 ```
 
-### 7. Register the slash command
+### 7. Register the slash commands
 ```bash
 DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
 ```
@@ -144,6 +166,20 @@ Then re-register commands so `/arc restore` appears in Discord:
 DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
 ```
 
+### Upgrading to v1.3.0
+v1.3.0 adds `/gaming` and `/games`. Before the v1.3.0 code goes live:
+1. Create the `games` table (safe to run more than once):
+   ```bash
+   npm run db:migrate:games
+   ```
+2. Set `GAMING_CHANNEL_ID` in `wrangler.toml` to the channel sessions should be
+   posted in (Discord: right-click the channel → **Copy Channel ID**; needs
+   Developer Mode on). Botdog needs **View Channel** and **Send Messages** there.
+3. Re-register commands so `/gaming` and `/games` appear:
+   ```bash
+   DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+   ```
+
 ### 9. Configure channels
 From your admin channel:
 ```
@@ -157,6 +193,11 @@ From your admin channel:
 cp .dev.vars.example .dev.vars   # fill in token + public key
 npm run db:init:local
 npm run dev
+```
+Run the tests (no setup needed — uses Node's built-in SQLite and a mocked
+Discord API):
+```bash
+npm test
 ```
 Note: verifying real interactions locally needs a tunnel (e.g. `cloudflared`)
 so Discord can reach your machine.

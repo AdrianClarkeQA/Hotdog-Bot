@@ -50,4 +50,15 @@ export async function moveChannel(env, channelId, parentId) {
   return rest(env, "PATCH", `/channels/${channelId}`, { parent_id: parentId });
 }
 
+// Post a message in a channel. allowed_mentions parse [] means nothing in the
+// text pings anyone (e.g. a game named "@everyone"), and SUPPRESS_EMBEDS (4)
+// stops links in game names unfurling.
+export async function postMessage(env, channelId, content) {
+  return rest(env, "POST", `/channels/${channelId}/messages`, {
+    content,
+    allowed_mentions: { parse: [] },
+    flags: 4,
+  });
+}
+
 export { rest };
