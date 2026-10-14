@@ -30,7 +30,7 @@ you can run them from a single admin channel.
 | `/arc off <channel>` | Exclude a channel from archiving |
 | `/arc days <channel> <n>` | Set inactivity threshold (days) |
 | `/arc status [channel]` | Show one channel's config, or all |
-| `/arc restore <channel>` | Move an archived channel back to its original category |
+| `/arc restore [channel]` | Move an archived channel back to its home category; with no channel, restores the one you type it in |
 | `/arc all <on\|off>` | Global master switch |
 
 Every text and announcement channel is covered automatically, including ones

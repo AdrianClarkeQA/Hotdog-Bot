@@ -100,9 +100,10 @@ export async function handleCommand(interaction, env) {
       return reply(`✅ Global monitoring turned ${state}.`);
     }
     case "restore": {
-      // /arc restore <channel> — move an archived channel back to the
-      // category it was archived from. Usable from any channel.
-      const ch = opt(sub.options, "channel");
+      // /arc restore [channel] — move an archived channel back to its home
+      // category. With no channel given, restores the channel it's typed in.
+      const ch = opt(sub.options, "channel") ?? interaction.channel_id ?? interaction.channel?.id;
+      if (!ch) return reply("Pick a channel to restore.");
       try {
         return await restoreChannel(env, ch);
       } catch (err) {
