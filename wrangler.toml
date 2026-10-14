@@ -26,7 +26,7 @@ DEFAULT_DAYS = "30"
 DRY_RUN = "false"
 # Channel where /gaming posts session announcements (right-click the channel
 # in Discord > Copy Channel ID). /gaming replies with a warning until it's set.
-GAMING_CHANNEL_ID = ""
+GAMING_CHANNEL_ID = "1095788991602753536"
 # Timezone /gaming reads dates and times in. Discord then shows each viewer
 # the session in their own local time.
 TIMEZONE = "Europe/London"

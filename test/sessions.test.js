@@ -69,6 +69,6 @@ test("markdown in game names is escaped so bold isn't broken", () => {
 test("announcement text", () => {
   assert.equal(
     sessionMessage({ game: "Helldivers 2", unix: 1791992700, userId: "42" }),
-    "🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)\nSuggested by <@42>"
+    "🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)\nCreated by <@42>"
   );
 });
