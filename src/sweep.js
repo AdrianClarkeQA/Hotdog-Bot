@@ -2,7 +2,7 @@
 // All text/announcement channels are covered by default; D1 rows override.
 // Set DRY_RUN = "true" in wrangler.toml to log decisions without moving anything.
 
-import { getGlobalEnabled, markArchived, markRestored } from "./db.js";
+import { getGlobalEnabled, markArchived, markRestored, hasKnownHome } from "./db.js";
 import { lastMessageTime, moveChannel } from "./discord.js";
 import { effectiveChannels } from "./coverage.js";
 
@@ -24,9 +24,10 @@ export async function runSweep(env) {
     if (!enabled) continue;
     const inArchive = channel.parent_id === archiveId;
 
-    // A channel sitting in the archive that the bot never archived (no row)
-    // has no known home to go back to, so leave it alone.
-    if (inArchive && !cfg) continue;
+    // A channel sitting in the archive with no known home (put there by hand
+    // and never restored) has nowhere to go back to, so leave it alone.
+    // /arc restore asks for its category and records it.
+    if (inArchive && !hasKnownHome(cfg)) continue;
 
     try {
       const last = await lastMessageTime(env, channel.id);
@@ -37,7 +38,11 @@ export async function runSweep(env) {
       const threshold = days * DAY_MS;
       const label = `#${channel.name} (${channel.id})`;
 
-      if (!inArchive && inactiveMs >= threshold) {
+      // Since a restore, the clock starts from the restore time rather than
+      // the last message, so restored channels get a full threshold period.
+      const sinceRestoreMs = cfg?.restored_at ? now - cfg.restored_at : Infinity;
+
+      if (!inArchive && Math.min(inactiveMs, sinceRestoreMs) >= threshold) {
         // Stale -> archive. Remember where it lived.
         if (dryRun) {
           console.log(`DRY RUN: would archive ${label} — ${Math.floor(inactiveMs / DAY_MS)}d idle, limit ${days}d`);
@@ -54,7 +59,7 @@ export async function runSweep(env) {
           continue;
         }
         await moveChannel(env, channel.id, dest);
-        await markRestored(env, channel.id);
+        await markRestored(env, channel.id, dest);
         console.log(`Restored ${label} -> ${dest}`);
       }
     } catch (err) {
