@@ -99,6 +99,6 @@ export function escapeMarkdown(text) {
 export function sessionMessage({ game, unix, userId }) {
   return (
     `🎮 **${escapeMarkdown(game)}** session planned for <t:${unix}:F> (<t:${unix}:R>)` +
-    (userId ? `\nSuggested by <@${userId}>` : "")
+    (userId ? `\nCreated by <@${userId}>` : "")
   );
 }

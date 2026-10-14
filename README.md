@@ -61,7 +61,7 @@ quiet channel isn't swept straight back into the archive the next morning.
 `/gaming` posts in the channel set by `GAMING_CHANNEL_ID`, wherever it's typed:
 
 > 🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)
-> Suggested by @Ade
+> Created by @Ade
 
 - **Game**: pick from the saved list or type a new name. The list fills itself:
   every game posted is saved. Most-used games are suggested first; matching is

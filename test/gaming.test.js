@@ -32,7 +32,7 @@ test("/gaming posts in the gaming channel with bold game and timestamps, no ping
   const { method, path, body } = discord.calls[0];
   assert.equal(method, "POST");
   assert.equal(path, "/channels/chan-gaming/messages");
-  assert.match(body.content, /^🎮 \*\*Helldivers 2\*\* session planned for <t:(\d+):F> \(<t:\1:R>\)\nSuggested by <@user-1>$/);
+  assert.match(body.content, /^🎮 \*\*Helldivers 2\*\* session planned for <t:(\d+):F> \(<t:\1:R>\)\nCreated by <@user-1>$/);
   assert.deepEqual(body.allowed_mentions, { parse: [] });
 });
 
