@@ -30,6 +30,7 @@ you can run them from a single admin channel.
 | `/arc off <channel>` | Exclude a channel from archiving |
 | `/arc days <channel> <n>` | Set inactivity threshold (days) |
 | `/arc status [channel]` | Show one channel's config, or all |
+| `/arc restore <channel>` | Move an archived channel back to its original category |
 | `/arc all <on\|off>` | Global master switch |
 
 Every text and announcement channel is covered automatically, including ones
@@ -39,6 +40,12 @@ covered channel; ones marked `(default)` have no override.
 
 Channels already in the archive category that the bot didn't put there are left
 alone, since it doesn't know where to restore them to.
+
+`/arc restore` can be run from any channel. It only restores channels Botdog
+archived (those have a recorded home); if that category has since been
+deleted, the channel is moved out of the archive with no category. A restored
+channel gets a fresh inactivity window from the moment it's restored, so a
+quiet channel isn't swept straight back into the archive the next morning.
 
 ### Dry run
 With `DRY_RUN = "true"` in `wrangler.toml`, each sweep only logs what it would
@@ -121,7 +128,17 @@ Actions** and add:
   overview, right-hand side).
 
 Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
-GitHub. D1 schema changes are still applied manually with `npm run db:init`.
+GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+
+### Upgrading to v1.2.0
+v1.2.0 adds a `restored_at` column. Before the v1.2.0 code goes live, run once:
+```bash
+npm run db:migrate
+```
+Then re-register commands so `/arc restore` appears in Discord:
+```bash
+DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+```
 
 ### 9. Configure channels
 From your admin channel:

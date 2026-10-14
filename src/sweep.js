@@ -37,7 +37,11 @@ export async function runSweep(env) {
       const threshold = days * DAY_MS;
       const label = `#${channel.name} (${channel.id})`;
 
-      if (!inArchive && inactiveMs >= threshold) {
+      // Since a restore, the clock starts from the restore time rather than
+      // the last message, so restored channels get a full threshold period.
+      const sinceRestoreMs = cfg?.restored_at ? now - cfg.restored_at : Infinity;
+
+      if (!inArchive && Math.min(inactiveMs, sinceRestoreMs) >= threshold) {
         // Stale -> archive. Remember where it lived.
         if (dryRun) {
           console.log(`DRY RUN: would archive ${label} — ${Math.floor(inactiveMs / DAY_MS)}d idle, limit ${days}d`);

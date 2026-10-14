@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS channels (
   enabled            INTEGER NOT NULL DEFAULT 1,   -- 1 = monitored, 0 = ignored
   days               INTEGER NOT NULL DEFAULT 30,  -- inactivity threshold
   original_parent_id TEXT,                         -- category to restore to; NULL if not archived
-  is_archived        INTEGER NOT NULL DEFAULT 0    -- 1 = currently in the archive category
+  is_archived        INTEGER NOT NULL DEFAULT 0,   -- 1 = currently in the archive category
+  restored_at        INTEGER                       -- ms timestamp of last restore; restarts the inactivity clock
 );
 
 -- Single-row global switch. id is always 1.
