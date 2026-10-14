@@ -24,6 +24,12 @@ DEFAULT_DAYS = "30"
 # "true" = sweep only logs what it would archive/restore (watch with
 # `npx wrangler tail`). Set to "false" and redeploy to let it act.
 DRY_RUN = "false"
+# Channel where /gaming posts session announcements (right-click the channel
+# in Discord > Copy Channel ID). /gaming replies with a warning until it's set.
+GAMING_CHANNEL_ID = ""
+# Timezone /gaming reads dates and times in. Discord then shows each viewer
+# the session in their own local time.
+TIMEZONE = "Europe/London"
 
 # Secrets (set via `wrangler secret put NAME`, never commit these):
 #   DISCORD_TOKEN         - bot token

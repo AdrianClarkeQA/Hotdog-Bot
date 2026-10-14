@@ -1,4 +1,4 @@
-// One-time (re-run when commands change) registration of the /arc command.
+// One-time (re-run when commands change) registration of /arc, /gaming and /games.
 // Run locally:  node scripts/register-commands.js
 // Requires env vars: DISCORD_TOKEN, DISCORD_APPLICATION_ID, GUILD_ID
 // (guild-scoped commands appear instantly; global ones can take ~1h.)
@@ -18,7 +18,7 @@ const CHANNEL = 7;
 const INTEGER = 4;
 const STRING = 3;
 
-const command = {
+const arc = {
   name: "arc",
   description: "Manage channel auto-archiving",
   options: [
@@ -89,20 +89,65 @@ const command = {
   ],
 };
 
+// /gaming <game> <date> <time> — game has autocomplete from the saved list,
+// but anything typed is accepted too.
+const gaming = {
+  name: "gaming",
+  description: "Post a planned gaming session",
+  options: [
+    {
+      type: STRING,
+      name: "game",
+      description: "Pick a saved game or type a new one",
+      required: true,
+      autocomplete: true,
+      max_length: 100,
+    },
+    { type: STRING, name: "date", description: "DD/MM/YYYY, e.g. 25/10/2026", required: true, max_length: 10 },
+    { type: STRING, name: "time", description: "24-hour HH:MM (UK time), e.g. 20:00", required: true, max_length: 5 },
+  ],
+};
+
+// /games remove <game> — tidy the saved list (privileged role only).
+const games = {
+  name: "games",
+  description: "Manage the saved game list",
+  options: [
+    {
+      type: SUB,
+      name: "remove",
+      description: "Remove a game from the list",
+      options: [
+        {
+          type: STRING,
+          name: "game",
+          description: "Game to remove",
+          required: true,
+          autocomplete: true,
+          max_length: 100,
+        },
+      ],
+    },
+  ],
+};
+
 const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`;
 
-const res = await fetch(url, {
-  method: "POST",
-  headers: {
-    Authorization: `Bot ${TOKEN}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify(command),
-});
+// POST creates a command or updates the existing one with the same name.
+for (const command of [arc, gaming, games]) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bot ${TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(command),
+  });
 
-if (res.ok) {
-  console.log("✅ Registered /arc");
-} else {
-  console.error("❌ Failed:", res.status, await res.text());
-  process.exit(1);
+  if (res.ok) {
+    console.log(`✅ Registered /${command.name}`);
+  } else {
+    console.error(`❌ Failed /${command.name}:`, res.status, await res.text());
+    process.exit(1);
+  }
 }
