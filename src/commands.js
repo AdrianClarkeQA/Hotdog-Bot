@@ -10,6 +10,7 @@ import {
   getChannelConfig,
   defaultDays,
   markRestored,
+  hasKnownHome,
 } from "./db.js";
 import { effectiveChannels } from "./coverage.js";
 import { getChannel, moveChannel } from "./discord.js";
@@ -103,7 +104,7 @@ export async function handleCommand(interaction, env) {
       // category it was archived from. Usable from any channel.
       const ch = opt(sub.options, "channel");
       try {
-        return reply(await restoreChannel(env, ch));
+        return await restoreChannel(env, ch);
       } catch (err) {
         console.error(`Restore ${ch} failed:`, err.message);
         return reply(`❌ Couldn't restore <#${ch}>. Check the bot still has Manage Channels.`);
@@ -114,43 +115,112 @@ export async function handleCommand(interaction, env) {
   }
 }
 
-// Moves an archived channel back to its original category and returns the
-// reply text. Only channels Botdog archived itself can be restored, since
-// those are the only ones with a recorded home.
+// custom_id prefix for the category picker shown when a channel's home is
+// unknown. The channel being restored is carried in the id.
+const PICK_PREFIX = "restore-pick:";
+
+// Moves an archived channel back to its home category. If Botdog doesn't know
+// where it belongs (archived by hand), replies with a category picker instead;
+// the choice is handled by handleComponent below.
 async function restoreChannel(env, channelId) {
   const channel = await getChannel(env, channelId);
-  if (!channel?.id) return "That channel no longer exists.";
+  if (!channel?.id) return reply("That channel no longer exists.");
 
   if (channel.parent_id !== env.ARCHIVE_CATEGORY_ID) {
-    return `<#${channelId}> isn't in the archive category, so there's nothing to restore.`;
+    return reply(`<#${channelId}> isn't in the archive category, so there's nothing to restore.`);
   }
 
   const cfg = await getChannelConfig(env, channelId);
-  if (!cfg?.is_archived) {
-    return (
-      `<#${channelId}> is in the archive, but Botdog didn't put it there, ` +
-      "so I don't know which category it belongs in. Move it manually."
-    );
+  if (!hasKnownHome(cfg)) {
+    return {
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        flags: 64,
+        content:
+          `Botdog didn't archive <#${channelId}>, so I don't know where it belongs. ` +
+          "Which category should it go back to? I'll remember for next time.",
+        components: [
+          {
+            type: 1, // action row
+            components: [
+              {
+                type: 8, // channel select
+                custom_id: PICK_PREFIX + channelId,
+                channel_types: [CATEGORY],
+                placeholder: "Choose a category",
+              },
+            ],
+          },
+        ],
+      },
+    };
   }
 
-  // The original category may have been deleted since archiving.
+  // The home category may have been deleted since it was recorded.
   let dest = cfg.original_parent_id ?? null;
-  let destName = "no category";
   let note = "";
   if (dest) {
     const parent = await getChannel(env, dest);
-    if (parent?.id && parent.type === CATEGORY) {
-      destName = `**${parent.name}**`;
-    } else {
+    if (!parent?.id || parent.type !== CATEGORY) {
       dest = null;
       note = " Its original category no longer exists, so it's now outside any category.";
     }
   }
+  return reply(await moveHome(env, channelId, dest, cfg.days, note));
+}
 
+// Moves the channel, records dest as its home, and returns the reply text.
+async function moveHome(env, channelId, dest, days, note = "") {
+  let destName = "no category";
+  if (dest) {
+    const parent = await getChannel(env, dest);
+    destName = `**${parent.name}**`;
+  }
   await moveChannel(env, channelId, dest);
-  await markRestored(env, channelId);
+  await markRestored(env, channelId, dest);
   return (
     `✅ Restored <#${channelId}> to ${destName}.${note} ` +
-    `It won't be re-archived for at least ${cfg.days} day(s).`
+    `It won't be re-archived for at least ${days} day(s).`
   );
+}
+
+// Handles the category picker. Replaces the picker message with the result.
+export async function handleComponent(interaction, env) {
+  const update = (content) => ({
+    type: InteractionResponseType.UPDATE_MESSAGE,
+    data: { content, components: [] },
+  });
+
+  const roles = interaction.member?.roles ?? [];
+  if (!roles.includes(env.PRIVILEGED_ROLE_ID)) {
+    return update("⛔ You don't have permission to use this command.");
+  }
+
+  const customId = interaction.data?.custom_id ?? "";
+  if (!customId.startsWith(PICK_PREFIX)) return update("Unknown action.");
+  const channelId = customId.slice(PICK_PREFIX.length);
+  const dest = interaction.data.values?.[0];
+
+  if (!dest) return update("No category chosen.");
+  if (dest === env.ARCHIVE_CATEGORY_ID) {
+    return update("That's the archive category — run `/arc restore` again and pick another.");
+  }
+
+  try {
+    // Re-check: someone may have moved the channel while the picker was open.
+    const channel = await getChannel(env, channelId);
+    if (!channel?.id) return update("That channel no longer exists.");
+    if (channel.parent_id !== env.ARCHIVE_CATEGORY_ID) {
+      return update(`<#${channelId}> is no longer in the archive, so nothing was moved.`);
+    }
+    const parent = await getChannel(env, dest);
+    if (!parent?.id || parent.type !== CATEGORY) {
+      return update("That category no longer exists — run `/arc restore` again.");
+    }
+    const cfg = await getChannelConfig(env, channelId);
+    return update(await moveHome(env, channelId, dest, cfg?.days ?? defaultDays(env)));
+  } catch (err) {
+    console.error(`Restore ${channelId} -> ${dest} failed:`, err.message);
+    return update(`❌ Couldn't restore <#${channelId}>. Check the bot still has Manage Channels.`);
+  }
 }

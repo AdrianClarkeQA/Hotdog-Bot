@@ -3,7 +3,7 @@
 //  - scheduled(): runs the archive/restore sweep on the cron trigger
 
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
-import { handleCommand } from "./commands.js";
+import { handleCommand, handleComponent } from "./commands.js";
 import { runSweep } from "./sweep.js";
 
 export default {
@@ -36,6 +36,11 @@ export default {
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
       const response = await handleCommand(interaction, env);
       return json(response);
+    }
+
+    // Button/select clicks, e.g. the /arc restore category picker.
+    if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+      return json(await handleComponent(interaction, env));
     }
 
     return new Response("Unhandled interaction", { status: 400 });

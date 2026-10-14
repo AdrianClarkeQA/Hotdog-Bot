@@ -38,12 +38,16 @@ created later, using `DEFAULT_DAYS` from `wrangler.toml` (30 unless changed).
 `/arc off` and `/arc days` store per-channel overrides. `/arc status` lists every
 covered channel; ones marked `(default)` have no override.
 
-Channels already in the archive category that the bot didn't put there are left
-alone, since it doesn't know where to restore them to.
+The daily sweep leaves alone any channel in the archive that it doesn't know a
+home for (moved there by hand and never restored) — use `/arc restore` on it
+once to set one.
 
-`/arc restore` can be run from any channel. It only restores channels Botdog
-archived (those have a recorded home); if that category has since been
-deleted, the channel is moved out of the archive with no category. A restored
+`/arc restore` can be run from any channel. Channels Botdog archived go back to
+the category they came from; if that category has since been deleted, the
+channel is moved out of the archive with no category. For a channel someone
+moved into the archive by hand, Botdog asks which category it belongs in,
+moves it there, and remembers that as its home — so the next restore (manual
+or automatic) needs no question. A restored
 channel gets a fresh inactivity window from the moment it's restored, so a
 quiet channel isn't swept straight back into the archive the next morning.
 
