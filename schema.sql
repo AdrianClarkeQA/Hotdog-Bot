@@ -11,6 +11,17 @@ CREATE TABLE IF NOT EXISTS channels (
   restored_at        INTEGER                       -- ms timestamp of last restore; restarts the inactivity clock
 );
 
+-- Saved game list for /gaming autocomplete. One row per game; name_key is the
+-- lowercased, whitespace-tidied name so "Helldivers 2" and "helldivers 2" match.
+CREATE TABLE IF NOT EXISTS games (
+  name_key  TEXT PRIMARY KEY,
+  name      TEXT NOT NULL,              -- spelling shown in Discord
+  uses      INTEGER NOT NULL DEFAULT 1, -- sessions posted; most-used suggested first
+  last_used INTEGER NOT NULL,           -- ms timestamp of latest session
+  added_by  TEXT,                       -- Discord user id who first entered it
+  added_at  INTEGER NOT NULL
+);
+
 -- Single-row global switch. id is always 1.
 CREATE TABLE IF NOT EXISTS settings (
   id            INTEGER PRIMARY KEY CHECK (id = 1),

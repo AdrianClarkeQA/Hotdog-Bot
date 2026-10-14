@@ -1,9 +1,11 @@
 // Worker entry point.
-//  - fetch():     verifies + handles Discord interactions (slash commands)
+//  - fetch():     verifies + handles Discord interactions (slash commands,
+//                 autocomplete and component clicks)
 //  - scheduled(): runs the archive/restore sweep on the cron trigger
 
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
 import { handleCommand, handleComponent } from "./commands.js";
+import { handleGamingCommand, handleGamingAutocomplete, GAMING_COMMANDS } from "./gaming.js";
 import { runSweep } from "./sweep.js";
 
 export default {
@@ -34,8 +36,16 @@ export default {
     }
 
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
+      if (GAMING_COMMANDS.includes(interaction.data?.name)) {
+        return json(await handleGamingCommand(interaction, env));
+      }
       const response = await handleCommand(interaction, env);
       return json(response);
+    }
+
+    // Suggestions while typing in an autocomplete option (/gaming's game box).
+    if (interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
+      return json(await handleGamingAutocomplete(interaction, env));
     }
 
     // Button/select clicks, e.g. the /arc restore category picker.
