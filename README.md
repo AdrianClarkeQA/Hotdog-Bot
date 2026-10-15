@@ -66,9 +66,14 @@ quiet channel isn't swept straight back into the archive the next morning.
 - **Game**: pick from the saved list or type a new name. The list fills itself:
   every game posted is saved. Most-used games are suggested first; matching is
   case-insensitive, so "helldivers 2" reuses the saved "Helldivers 2".
-- **Date**: `DD/MM/YYYY` (or `DD/MM` for the next occurrence). **Time**: 24-hour
-  `HH:MM`. Both are read as UK time (`TIMEZONE` in `wrangler.toml`), and
-  Discord shows each viewer the session in their own timezone.
+- **Date**: `today`/`tonight`, `tomorrow` (or `tmrw`), a weekday (`Saturday`
+  or `sat` — the next one; today's weekday means today if the time is still to
+  come), `DD/MM/YYYY`, or `DD/MM` for the next occurrence.
+- **Time**: `21:00`, `2100`, `21.00`, `9pm`, `9:30pm` or `930pm`. A bare hour
+  like `9` is rejected because it could be am or pm.
+- Both are read as UK time (`TIMEZONE` in `wrangler.toml`), and Discord shows
+  each viewer the session in their own timezone. The private confirmation
+  shows the date and time Botdog picked, so a misread is easy to spot.
 - Past times, impossible dates and dates over a year away are rejected with a
   message only the poster sees.
 - The post never pings anyone, even if a game name contains `@everyone`.
@@ -162,6 +167,14 @@ v1.2.0 adds a `restored_at` column. Before the v1.2.0 code goes live, run once:
 npm run db:migrate
 ```
 Then re-register commands so `/arc restore` appears in Discord:
+```bash
+DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+```
+
+### Upgrading to v1.4.0
+v1.4.0 lets `/gaming` take dates like `tomorrow` or `Saturday` and times like
+`2100` or `9pm`. No database changes. After it deploys, re-register commands
+so the new hints and longer time box show in Discord:
 ```bash
 DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
 ```

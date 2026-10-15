@@ -26,7 +26,7 @@ test("/gaming posts in the gaming channel with bold game and timestamps, no ping
 
   assert.equal(r.type, 4);
   assert.equal(r.data.flags, 64); // confirmation only visible to the poster
-  assert.equal(r.data.content, "✅ Posted in <#chan-gaming>.");
+  assert.match(r.data.content, /^✅ Posted in <#chan-gaming> for <t:\d+:F>\.$/);
 
   assert.equal(discord.calls.length, 1);
   const { method, path, body } = discord.calls[0];
@@ -34,6 +34,16 @@ test("/gaming posts in the gaming channel with bold game and timestamps, no ping
   assert.equal(path, "/channels/chan-gaming/messages");
   assert.match(body.content, /^🎮 \*\*Helldivers 2\*\* session planned for <t:(\d+):F> \(<t:\1:R>\)\nCreated by <@user-1>$/);
   assert.deepEqual(body.allowed_mentions, { parse: [] });
+});
+
+test("/gaming accepts 'tomorrow' and '9pm' end to end", async () => {
+  const env = makeEnv();
+  discord = mockDiscord();
+  const r = await send(env, gamingCommand("Halo", "tomorrow", "9pm"));
+  assert.match(r.data.content, /^✅ Posted in/);
+  assert.equal(discord.calls.length, 1);
+  const unix = Number(/<t:(\d+):F>/.exec(discord.calls[0].body.content)[1]);
+  assert.ok(unix * 1000 > Date.now());
 });
 
 test("/gaming saves new games and counts repeat uses under one entry", async () => {
@@ -87,7 +97,7 @@ test("/gaming works for members without the admin role", async () => {
   const env = makeEnv();
   discord = mockDiscord();
   const r = await send(env, gamingCommand("Halo", DATE, "20:00", []));
-  assert.equal(r.data.content, "✅ Posted in <#chan-gaming>.");
+  assert.match(r.data.content, /^✅ Posted in <#chan-gaming> for <t:\d+:F>\.$/);
 });
 
 test("autocomplete: empty box lists most-used games first", async () => {

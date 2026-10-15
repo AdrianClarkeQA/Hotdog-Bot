@@ -2,6 +2,7 @@
 // plus the autocomplete for their `game` options.
 //
 //   /gaming <game> <date> <time>   anyone; posts in GAMING_CHANNEL_ID
+//     date: tomorrow, Saturday, 25/10/2026 …  time: 21:00, 2100, 9pm …
 //   /games remove <game>           privileged role only
 
 import { InteractionResponseType } from "discord-interactions";
@@ -71,7 +72,7 @@ export async function handleGamingCommand(interaction, env) {
     } catch (err) {
       console.error(`Saving game "${display}" failed:`, err.message);
     }
-    return reply(`✅ Posted in <#${channelId}>.`);
+    return reply(`✅ Posted in <#${channelId}> for <t:${when.unix}:F>.`);
   }
 
   // /games — admin only, like /arc.
