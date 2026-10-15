@@ -1,6 +1,6 @@
 {
   "name": "discord-channel-archiver",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Cloudflare Worker that auto-archives inactive Discord channels and posts planned gaming sessions.",
   "type": "module",
   "scripts": {

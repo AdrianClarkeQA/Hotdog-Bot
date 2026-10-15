@@ -103,8 +103,20 @@ const gaming = {
       autocomplete: true,
       max_length: 100,
     },
-    { type: STRING, name: "date", description: "DD/MM/YYYY, e.g. 25/10/2026", required: true, max_length: 10 },
-    { type: STRING, name: "time", description: "24-hour HH:MM (UK time), e.g. 20:00", required: true, max_length: 5 },
+    {
+      type: STRING,
+      name: "date",
+      description: "today, tomorrow, a day (Saturday) or DD/MM/YYYY",
+      required: true,
+      max_length: 10,
+    },
+    {
+      type: STRING,
+      name: "time",
+      description: "UK time, e.g. 21:00, 2100 or 9pm",
+      required: true,
+      max_length: 10,
+    },
   ],
 };
 
