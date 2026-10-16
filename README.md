@@ -1,7 +1,7 @@
 # Discord Channel Archiver
 
 A Cloudflare Worker that automatically archives inactive Discord channels and
-restores them when activity returns, and posts planned gaming sessions. Config is per-channel, controlled from
+restores them when activity returns, posts planned gaming sessions, and saves quotes. Config is per-channel, controlled from
 Discord by a privileged role.
 
 ## How it works
@@ -77,6 +77,32 @@ quiet channel isn't swept straight back into the archive the next morning.
 - Past times, impossible dates and dates over a year away are rejected with a
   message only the poster sees.
 - The post never pings anyone, even if a game name contains `@everyone`.
+
+## Quotes
+
+| Command | Who | Effect |
+|---|---|---|
+| `/quote <text>` | Everyone | Saves a quote; Botdog asks who said it, then posts it in the quotes channel |
+| `/quotes <who>` | Everyone | Shows that person's last 3 quotes, newest first |
+| Right-click a message → **Apps → Save as quote** | Everyone | Posts that message as a quote straight away, credited to whoever wrote it |
+
+Quotes are posted in the channel set by `QUOTES_CHANNEL_ID`, wherever the
+command is typed:
+
+> 💬 “I'm not lost, I'm exploring”
+> — @Ade
+
+- **Who said it?** After `/quote`, a private prompt (only you see it) offers a
+  member picker, a **Someone not in the server** button that opens a box to
+  type a name, and **Cancel**. Prompts left unanswered are cleared after a day.
+- **`/quotes`** suggests everyone who's been quoted, most-quoted first. Typing a
+  name without picking a suggestion works too (case doesn't matter). The
+  answer is posted where you typed it so everyone can see; if there are no
+  quotes for that person, only you see the reply.
+- Members are shown as mentions, so a name change shows up on old quotes too.
+  Nobody is pinged, even if a quote contains `@everyone`.
+- **Save as quote** adds a link back to the original message, and the same
+  message can't be saved twice.
 
 ### Dry run
 With `DRY_RUN = "true"` in `wrangler.toml`, each sweep only logs what it would
@@ -160,6 +186,20 @@ Actions** and add:
 
 Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
 GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+
+### Upgrading to v1.5.0
+v1.5.0 adds quotes. Before the v1.5.0 code goes live:
+1. Create the `quotes` table (safe to run more than once):
+   ```bash
+   npm run db:migrate:quotes
+   ```
+2. `QUOTES_CHANNEL_ID` in `wrangler.toml` is already set to the quotes channel.
+   Botdog needs **View Channel** and **Send Messages** there.
+3. After it deploys, re-register commands so `/quote`, `/quotes` and
+   **Save as quote** appear:
+   ```bash
+   DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+   ```
 
 ### Upgrading to v1.2.0
 v1.2.0 adds a `restored_at` column. Before the v1.2.0 code goes live, run once:
