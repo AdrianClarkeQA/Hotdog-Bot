@@ -183,7 +183,9 @@ const saveAsQuote = { type: MESSAGE_MENU, name: "Save as quote" };
 const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`;
 
 // POST creates a command or updates the existing one with the same name.
-for (const command of [arc, gaming, games, quote, quotes, saveAsQuote]) {
+// Discord only allows a few command changes in quick succession, so on a 429
+// wait the time it asks for and try again.
+async function register(command, attempt = 1) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -193,10 +195,25 @@ for (const command of [arc, gaming, games, quote, quotes, saveAsQuote]) {
     body: JSON.stringify(command),
   });
 
+  if (res.status === 429 && attempt <= 5) {
+    const body = await res.json().catch(() => ({}));
+    const wait = Number(body.retry_after ?? res.headers.get("retry-after") ?? 5);
+    console.log(`⏳ Rate limited on /${command.name}, retrying in ${Math.ceil(wait)}s…`);
+    await new Promise((r) => setTimeout(r, wait * 1000 + 250));
+    return register(command, attempt + 1);
+  }
+  return res;
+}
+
+for (const command of [arc, gaming, games, quote, quotes, saveAsQuote]) {
+  const res = await register(command);
   if (res.ok) {
     console.log(`✅ Registered /${command.name}`);
   } else {
     console.error(`❌ Failed /${command.name}:`, res.status, await res.text());
-    process.exit(1);
+    // exitCode rather than process.exit(), which can crash Node on Windows
+    // while a network request is still closing.
+    process.exitCode = 1;
+    break;
   }
 }
