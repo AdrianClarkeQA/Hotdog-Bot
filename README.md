@@ -91,7 +91,6 @@ command is typed:
 
 > 💬 “I'm not lost, I'm exploring”
 > — @Ade
-> Saved by @Sam
 
 - **Who said it?** After `/quote`, a private prompt (only you see it) offers a
   member picker, a **Someone not in the server** button that opens a box to
