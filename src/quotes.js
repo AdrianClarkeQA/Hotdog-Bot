@@ -80,13 +80,11 @@ function speakerLabel(s) {
   return id ? `<@${id}>` : `**${escapeMarkdown(s.speaker_name ?? s.name)}**`;
 }
 
-export function quoteMessage({ text, speaker, addedBy, sourceUrl }) {
-  const extras = [];
-  if (addedBy) extras.push(`Saved by <@${addedBy}>`);
-  if (sourceUrl) extras.push(`[original message](${sourceUrl})`);
+// Who saved a quote is stored (added_by) but not shown.
+export function quoteMessage({ text, speaker, sourceUrl }) {
   return (
     `💬 “${escapeQuote(text)}”\n— ${speakerLabel(speaker)}` +
-    (extras.length ? `\n-# ${extras.join(" · ")}` : "")
+    (sourceUrl ? `\n-# [original message](${sourceUrl})` : "")
   );
 }
 
@@ -182,7 +180,7 @@ async function saveMessageAsQuote(interaction, env, userId) {
     key: userKey(author.id),
   };
 
-  const content = quoteMessage({ text, speaker, addedBy: userId, sourceUrl });
+  const content = quoteMessage({ text, speaker, sourceUrl });
   if (content.length > MAX_MESSAGE) return reply("That message is too long to post as a quote.");
 
   try {
@@ -248,7 +246,7 @@ async function finishQuote(env, quote, speaker) {
   const claimed = await claimPendingQuote(env, quote.id, speaker);
   if (!claimed) return update("This quote has already been posted.");
 
-  const content = quoteMessage({ text: quote.text, speaker, addedBy: quote.added_by });
+  const content = quoteMessage({ text: quote.text, speaker });
   try {
     if (content.length > MAX_MESSAGE) throw new Error("quote too long once formatted");
     await post(env, content);

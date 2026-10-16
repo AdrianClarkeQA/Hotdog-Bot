@@ -112,7 +112,7 @@ test("picking a member posts the quote in quotes, in quotation marks, without pi
   assert.equal(discord.calls.length, 1);
   const { path, body } = discord.calls[0];
   assert.equal(path, `/channels/${QUOTES}/messages`);
-  assert.equal(body.content, "💬 “I'm not lost, I'm exploring”\n— <@user-2>\n-# Saved by <@user-1>");
+  assert.equal(body.content, "💬 “I'm not lost, I'm exploring”\n— <@user-2>");
   assert.deepEqual(body.allowed_mentions, { parse: [] });
 });
 
@@ -128,7 +128,7 @@ test("someone not in the server: button opens a name box, submitting posts with 
 
   const r = await send(e, submitName(modal.data.custom_id, "  Uncle   Dave "));
   assert.match(r.data.content, /✅ Quote posted/);
-  assert.equal(discord.calls[0].body.content, "💬 “Respawn is a state of mind”\n— **Uncle Dave**\n-# Saved by <@user-1>");
+  assert.equal(discord.calls[0].body.content, "💬 “Respawn is a state of mind”\n— **Uncle Dave**");
 });
 
 test("double-clicking the picker only posts once", async () => {
@@ -244,7 +244,7 @@ test("Save as quote posts the message straight away, credited to its author, onc
   assert.equal(r.data.flags, 64);
   assert.equal(
     discord.calls[0].body.content,
-    "💬 “gg no re”\n— <@user-9>\n-# Saved by <@user-1> · [original message](https://discord.com/channels/guild-1/chan-general/msg-42)"
+    "💬 “gg no re”\n— <@user-9>\n-# [original message](https://discord.com/channels/guild-1/chan-general/msg-42)"
   );
 
   const again = await send(e, saveAsQuote("gg no re"));
