@@ -1,7 +1,7 @@
 {
   "name": "discord-channel-archiver",
-  "version": "1.4.0",
-  "description": "Cloudflare Worker that auto-archives inactive Discord channels and posts planned gaming sessions.",
+  "version": "1.5.0",
+  "description": "Cloudflare Worker that auto-archives inactive Discord channels, posts planned gaming sessions and saves quotes.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -13,6 +13,8 @@
     "db:migrate:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0001_add_restored_at.sql",
     "db:migrate:games": "wrangler d1 execute hotdog-db --remote --file=./migrations/0002_add_games.sql",
     "db:migrate:games:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0002_add_games.sql",
+    "db:migrate:quotes": "wrangler d1 execute hotdog-db --remote --file=./migrations/0003_add_quotes.sql",
+    "db:migrate:quotes:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0003_add_quotes.sql",
     "test": "node --test --no-warnings \"test/*.test.js\""
   },
   "dependencies": {

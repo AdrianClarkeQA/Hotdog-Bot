@@ -1,4 +1,5 @@
-// One-time (re-run when commands change) registration of /arc, /gaming and /games.
+// One-time (re-run when commands change) registration of /arc, /gaming, /games,
+// /quote, /quotes and the "Save as quote" message menu item.
 // Run locally:  node scripts/register-commands.js
 // Requires env vars: DISCORD_TOKEN, DISCORD_APPLICATION_ID, GUILD_ID
 // (guild-scoped commands appear instantly; global ones can take ~1h.)
@@ -17,6 +18,8 @@ const SUB = 1;
 const CHANNEL = 7;
 const INTEGER = 4;
 const STRING = 3;
+// Command types: 1 = slash command (the default), 3 = right-click a message → Apps.
+const MESSAGE_MENU = 3;
 
 const arc = {
   name: "arc",
@@ -143,10 +146,44 @@ const games = {
   ],
 };
 
+// /quote <text> — Botdog then asks who said it.
+const quote = {
+  name: "quote",
+  description: "Save a quote — Botdog asks who said it, then posts it in the quotes channel",
+  options: [
+    {
+      type: STRING,
+      name: "text",
+      description: "What they said",
+      required: true,
+      max_length: 1000,
+    },
+  ],
+};
+
+// /quotes <who> — last 3 quotes from someone; suggests everyone who's been quoted.
+const quotes = {
+  name: "quotes",
+  description: "Show someone's last 3 quotes",
+  options: [
+    {
+      type: STRING,
+      name: "who",
+      description: "Who said them",
+      required: true,
+      autocomplete: true,
+      max_length: 100,
+    },
+  ],
+};
+
+// Right-click a message → Apps → Save as quote. Message menu items have no description.
+const saveAsQuote = { type: MESSAGE_MENU, name: "Save as quote" };
+
 const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`;
 
 // POST creates a command or updates the existing one with the same name.
-for (const command of [arc, gaming, games]) {
+for (const command of [arc, gaming, games, quote, quotes, saveAsQuote]) {
   const res = await fetch(url, {
     method: "POST",
     headers: {

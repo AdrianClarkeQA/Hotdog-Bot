@@ -1,11 +1,19 @@
 // Worker entry point.
 //  - fetch():     verifies + handles Discord interactions (slash commands,
-//                 autocomplete and component clicks)
+//                 autocomplete, component clicks and pop-up form submissions)
 //  - scheduled(): runs the archive/restore sweep on the cron trigger
 
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
 import { handleCommand, handleComponent } from "./commands.js";
 import { handleGamingCommand, handleGamingAutocomplete, GAMING_COMMANDS } from "./gaming.js";
+import {
+  handleQuoteCommand,
+  handleQuoteAutocomplete,
+  handleQuoteComponent,
+  handleQuoteModal,
+  QUOTE_COMMANDS,
+  QUOTE_PREFIX,
+} from "./quotes.js";
 import { runSweep } from "./sweep.js";
 
 export default {
@@ -39,18 +47,34 @@ export default {
       if (GAMING_COMMANDS.includes(interaction.data?.name)) {
         return json(await handleGamingCommand(interaction, env));
       }
+      if (QUOTE_COMMANDS.includes(interaction.data?.name)) {
+        return json(await handleQuoteCommand(interaction, env));
+      }
       const response = await handleCommand(interaction, env);
       return json(response);
     }
 
-    // Suggestions while typing in an autocomplete option (/gaming's game box).
+    // Suggestions while typing in an autocomplete option
+    // (/gaming's game box, /quotes' who box).
     if (interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
+      if (QUOTE_COMMANDS.includes(interaction.data?.name)) {
+        return json(await handleQuoteAutocomplete(interaction, env));
+      }
       return json(await handleGamingAutocomplete(interaction, env));
     }
 
-    // Button/select clicks, e.g. the /arc restore category picker.
+    // Button/select clicks: the /quote "who said it?" prompt (anyone), or the
+    // /arc restore category picker (privileged role).
     if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+      if (interaction.data?.custom_id?.startsWith(QUOTE_PREFIX)) {
+        return json(await handleQuoteComponent(interaction, env));
+      }
       return json(await handleComponent(interaction, env));
+    }
+
+    // Pop-up form submissions (the /quote "someone not in the server" name box).
+    if (interaction.type === InteractionType.MODAL_SUBMIT) {
+      return json(await handleQuoteModal(interaction, env));
     }
 
     return new Response("Unhandled interaction", { status: 400 });
