@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS games (
   uses      INTEGER NOT NULL DEFAULT 1, -- sessions posted; most-used suggested first
   last_used INTEGER NOT NULL,           -- ms timestamp of latest session
   added_by  TEXT,                       -- Discord user id who first entered it
-  added_at  INTEGER NOT NULL
+  added_at  INTEGER NOT NULL,
+  coop_status TEXT                      -- NULL = not on the co-op list; else ready / not_purchased / parked / completed
 );
 
 -- Saved quotes (/quote, /quotes, "Save as quote"). A /quote row starts with

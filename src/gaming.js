@@ -16,6 +16,9 @@ import {
 } from "./sessions.js";
 import { suggestGames, findGame, recordGame, removeGame, MAX_SUGGESTIONS } from "./games-db.js";
 import { postMessage } from "./discord.js";
+import { COOP_STATUSES } from "./coop.js";
+
+const COOP_LABELS = Object.fromEntries(Object.entries(COOP_STATUSES).map(([k, v]) => [k, v.label]));
 
 export const GAMING_COMMANDS = ["gaming", "games"];
 
@@ -30,10 +33,10 @@ function opt(options, name) {
   return (options ?? []).find((o) => o.name === name)?.value;
 }
 
-// /games has subcommands; /gaming doesn't. Returns the options that hold `game`.
+// /games and /coop have subcommands; /gaming doesn't. Returns the options that hold `game`.
 function gameOptions(interaction) {
   const top = interaction.data?.options ?? [];
-  return interaction.data?.name === "games" ? top[0]?.options ?? [] : top;
+  return interaction.data?.name === "gaming" ? top : top[0]?.options ?? [];
 }
 
 export async function handleGamingCommand(interaction, env) {
@@ -90,23 +93,30 @@ export async function handleGamingCommand(interaction, env) {
   return reply("Unknown subcommand.");
 }
 
-// Suggestions for the `game` box while someone types.
+// Suggestions for the `game` box while someone types (/gaming, /games remove,
+// /coop set). /coop shows each game's current co-op status next to its name.
 export async function handleGamingAutocomplete(interaction, env) {
   const focused = gameOptions(interaction).find((o) => o.focused);
   const typed = tidyGameName(focused?.value ?? "");
-  const allowNew = interaction.data?.name === "gaming";
+  const command = interaction.data?.name;
+  const allowNew = command === "gaming" || command === "coop";
 
   let choices = [];
   try {
     const rows = await suggestGames(env, typed, MAX_SUGGESTIONS);
-    choices = rows.map((r) => ({ name: r.name, value: r.name }));
+    choices = rows.map((r) => {
+      const label =
+        command === "coop" && r.coop_status ? `${r.name} · ${COOP_LABELS[r.coop_status] ?? r.coop_status}` : r.name;
+      return { name: label.slice(0, MAX_GAME_LEN), value: r.name };
+    });
 
-    // On /gaming, offer what's typed as a new game unless it's already saved.
+    // On /gaming and /coop, offer what's typed as a new game unless it's already saved.
     const key = gameKey(typed);
     if (allowNew && key && !rows.some((r) => r.name_key === key)) {
       const value = typed.slice(0, MAX_GAME_LEN);
       choices = choices.slice(0, MAX_SUGGESTIONS - 1);
-      choices.push({ name: `➕ New game: ${value}`.slice(0, MAX_GAME_LEN), value });
+      const prefix = command === "coop" ? "New game: " : "➕ New game: ";
+      choices.push({ name: `${prefix}${value}`.slice(0, MAX_GAME_LEN), value });
     }
   } catch (err) {
     console.error("Game autocomplete failed:", err.message);

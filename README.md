@@ -1,7 +1,7 @@
 # Discord Channel Archiver
 
 A Cloudflare Worker that automatically archives inactive Discord channels and
-restores them when activity returns, posts planned gaming sessions, and saves quotes. Config is per-channel, controlled from
+restores them when activity returns, posts planned gaming sessions, tracks co-op games, and saves quotes. Config is per-channel, controlled from
 Discord by a privileged role.
 
 ## How it works
@@ -77,6 +77,35 @@ quiet channel isn't swept straight back into the archive the next morning.
 - Past times, impossible dates and dates over a year away are rejected with a
   message only the poster sees.
 - The post never pings anyone, even if a game name contains `@everyone`.
+
+## Co-op games
+
+| Command | Who | Effect |
+|---|---|---|
+| `/coop set <game> <status>` | Everyone | Sets a game's co-op status (adds the game if it's new) |
+| `/coop recommend` | Everyone | Picks a random **Ready** game and posts it where you typed |
+| `/coop list [status]` | Everyone | Shows the co-op list grouped by status (only you see it) |
+
+Statuses, picked from a list so there's nothing to type:
+
+| Status | Meaning |
+|---|---|
+| Ready | Can be played now |
+| Not Purchased | Want to play, not owned yet or not released |
+| Parked | Taking a break from it |
+| Completed It Mate | Finished, not coming back to it |
+
+- **Same game list as `/gaming`.** A game posted with `/gaming` can be given a
+  status, and a game added with `/coop set` is suggested by `/gaming`. Games
+  posted with `/gaming` only join the co-op list once they're given a status.
+- The `game` box suggests saved games with their current status shown next to
+  them (e.g. `Helldivers 2 · Parked`); typing a new name adds it.
+- The confirmation shows the change, e.g. Ready → Parked.
+- `/coop recommend` only ever picks **Ready** games. If none are Ready, only you
+  see the reply.
+- It's `/coop set <game> <status>` rather than `/coop <game> <status>` because
+  Discord doesn't let one command mix subcommands (`recommend`) with plain options.
+- `/games remove` deletes a game entirely, including its co-op status.
 
 ## Quotes
 
@@ -186,6 +215,18 @@ Actions** and add:
 
 Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
 GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+
+### Upgrading to v1.6.0
+v1.6.0 adds the co-op games list (`/coop`). Before the v1.6.0 code goes live:
+1. Add the `coop_status` column to the games table (run once — a second run
+   errors with "duplicate column", which is harmless):
+   ```bash
+   npm run db:migrate:coop
+   ```
+2. After it deploys, re-register commands so `/coop` appears:
+   ```bash
+   DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+   ```
 
 ### Upgrading to v1.5.0
 v1.5.0 adds quotes. Before the v1.5.0 code goes live:
