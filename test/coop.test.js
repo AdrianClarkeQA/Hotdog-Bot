@@ -51,7 +51,7 @@ test("/coop set adds a new game with its status, privately confirmed", async () 
   const env = makeEnv();
   const r = await send(env, coopSet("Helldivers 2", "ready"));
   assert.equal(r.data.flags, 64);
-  assert.equal(r.data.content, "**Helldivers 2** added to the co-op list as ✅ Ready.");
+  assert.equal(r.data.content, "**Helldivers 2** added to the co-op list as Ready.");
   const row = env.DB.raw.prepare("SELECT name, uses, coop_status, added_by FROM games").get();
   assert.deepEqual({ ...row }, { name: "Helldivers 2", uses: 0, coop_status: "ready", added_by: "user-1" });
 });
@@ -60,7 +60,7 @@ test("/coop set changes status and shows old → new, keeping the saved spelling
   const env = makeEnv();
   await send(env, coopSet("Helldivers 2", "ready"));
   const r = await send(env, coopSet("  helldivers   2 ", "parked"));
-  assert.equal(r.data.content, "**Helldivers 2**: ✅ Ready → 🅿️ Parked");
+  assert.equal(r.data.content, "**Helldivers 2**: Ready → Parked");
   assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 1);
   assert.equal(statusOf(env, "Helldivers 2"), "parked");
 });
@@ -69,7 +69,7 @@ test("/coop set to the same status says so", async () => {
   const env = makeEnv();
   await send(env, coopSet("Halo", "completed"));
   const r = await send(env, coopSet("Halo", "completed"));
-  assert.equal(r.data.content, "**Halo** is already 🏆 Completed It Mate.");
+  assert.equal(r.data.content, "**Halo** is already Completed It Mate.");
 });
 
 test("/coop set rejects an unknown status and saves nothing", async () => {
@@ -101,7 +101,7 @@ test("/coop set autocomplete shows statuses and offers new games", async () => {
   assert.deepEqual(r.data.choices, [{ name: "Helldivers 2 · Parked", value: "Helldivers 2" }]);
 
   const n = await send(env, coopAutocomplete("Valheim"));
-  assert.deepEqual(n.data.choices, [{ name: "➕ New game: Valheim", value: "Valheim" }]);
+  assert.deepEqual(n.data.choices, [{ name: "New game: Valheim", value: "Valheim" }]);
 });
 
 test("/coop recommend picks only Ready games and posts publicly without pings", async () => {
@@ -115,7 +115,7 @@ test("/coop recommend picks only Ready games and posts publicly without pings", 
     const r = await send(env, coopSub("recommend"));
     assert.equal(r.data.flags, 4); // public, not ephemeral
     assert.deepEqual(r.data.allowed_mentions, { parse: [] });
-    assert.equal(r.data.content, "🎲 Co-op pick: **Helldivers 2** (the only Ready game)");
+    assert.equal(r.data.content, "Co-op pick: **Helldivers 2** (the only Ready game)");
   }
 });
 
@@ -124,7 +124,7 @@ test("/coop recommend with several Ready games says how many it picked from", as
   await send(env, coopSet("Helldivers 2", "ready"));
   await send(env, coopSet("Valheim", "ready"));
   const r = await send(env, coopSub("recommend"));
-  assert.match(r.data.content, /^🎲 Co-op pick: \*\*(Helldivers 2|Valheim)\*\* \(picked from 2 Ready games\)$/);
+  assert.match(r.data.content, /^Co-op pick: \*\*(Helldivers 2|Valheim)\*\* \(picked from 2 Ready games\)$/);
 });
 
 test("/coop recommend with nothing Ready replies privately", async () => {
@@ -132,7 +132,7 @@ test("/coop recommend with nothing Ready replies privately", async () => {
   await send(env, coopSet("Halo", "parked"));
   const r = await send(env, coopSub("recommend"));
   assert.equal(r.data.flags, 64);
-  assert.match(r.data.content, /No games are marked ✅ Ready/);
+  assert.match(r.data.content, /No games are marked Ready/);
 });
 
 test("pickRandom covers every item", () => {
@@ -155,7 +155,7 @@ test("/coop list groups by status in order, skips empty groups, ignores games wi
   assert.equal(r.data.flags, 64);
   assert.equal(
     r.data.content,
-    "**✅ Ready** (2)\n• Helldivers 2\n• Valheim\n\n**🏆 Completed It Mate** (1)\n• Portal 2"
+    "**Ready** (2)\n• Helldivers 2\n• Valheim\n\n**Completed It Mate** (1)\n• Portal 2"
   );
 });
 
@@ -163,7 +163,7 @@ test("/coop list filtered by status", async () => {
   const env = makeEnv();
   await send(env, coopSet("Valheim", "ready"));
   const r = await send(env, coopSub("list", [{ name: "status", type: 3, value: "parked" }]));
-  assert.equal(r.data.content, "**🅿️ Parked** (0)\n_None yet_");
+  assert.equal(r.data.content, "**Parked** (0)\n_None yet_");
 });
 
 test("/coop list when empty", async () => {

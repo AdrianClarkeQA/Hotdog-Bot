@@ -15,17 +15,16 @@ export const COOP_COMMANDS = ["coop"];
 
 // Order here is the order /coop list shows them and the order of the picker.
 export const COOP_STATUSES = {
-  ready: { label: "Ready", emoji: "✅" },
-  not_purchased: { label: "Not Purchased", emoji: "🛒" },
-  parked: { label: "Parked", emoji: "🅿️" },
-  completed: { label: "Completed It Mate", emoji: "🏆" },
+  ready: { label: "Ready" },
+  not_purchased: { label: "Not Purchased" },
+  parked: { label: "Parked" },
+  completed: { label: "Completed It Mate" },
 };
 
 // Discord messages max out at 2000 characters.
 const MAX_MESSAGE = 2000;
 
-export const statusText = (status) =>
-  COOP_STATUSES[status] ? `${COOP_STATUSES[status].emoji} ${COOP_STATUSES[status].label}` : status;
+export const statusText = (status) => COOP_STATUSES[status]?.label ?? status;
 
 function reply(content, { ephemeral = true } = {}) {
   return {
@@ -98,10 +97,10 @@ export async function handleCoopCommand(interaction, env) {
     const ready = await listCoopGames(env, "ready");
     const pick = pickRandom(ready);
     if (!pick) {
-      return reply("No games are marked ✅ Ready yet. Set one with `/coop set <game> Ready`.");
+      return reply("No games are marked Ready yet. Set one with `/coop set <game> Ready`.");
     }
     const outOf = ready.length === 1 ? "the only Ready game" : `picked from ${ready.length} Ready games`;
-    return reply(`🎲 Co-op pick: **${escapeMarkdown(pick.name)}** (${outOf})`, { ephemeral: false });
+    return reply(`Co-op pick: **${escapeMarkdown(pick.name)}** (${outOf})`, { ephemeral: false });
   }
 
   if (sub?.name === "list") {

@@ -90,17 +90,17 @@ Statuses, picked from a list so there's nothing to type:
 
 | Status | Meaning |
 |---|---|
-| ✅ Ready | Can be played now |
-| 🛒 Not Purchased | Want to play, not owned yet or not released |
-| 🅿️ Parked | Taking a break from it |
-| 🏆 Completed It Mate | Finished, not coming back to it |
+| Ready | Can be played now |
+| Not Purchased | Want to play, not owned yet or not released |
+| Parked | Taking a break from it |
+| Completed It Mate | Finished, not coming back to it |
 
 - **Same game list as `/gaming`.** A game posted with `/gaming` can be given a
   status, and a game added with `/coop set` is suggested by `/gaming`. Games
   posted with `/gaming` only join the co-op list once they're given a status.
 - The `game` box suggests saved games with their current status shown next to
   them (e.g. `Helldivers 2 · Parked`); typing a new name adds it.
-- The confirmation shows the change, e.g. ✅ Ready → 🅿️ Parked.
+- The confirmation shows the change, e.g. Ready → Parked.
 - `/coop recommend` only ever picks **Ready** games. If none are Ready, only you
   see the reply.
 - It's `/coop set <game> <status>` rather than `/coop <game> <status>` because
