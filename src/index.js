@@ -14,6 +14,7 @@ import {
   QUOTE_COMMANDS,
   QUOTE_PREFIX,
 } from "./quotes.js";
+import { handleCoopCommand, COOP_COMMANDS } from "./coop.js";
 import { runSweep } from "./sweep.js";
 
 export default {
@@ -50,12 +51,15 @@ export default {
       if (QUOTE_COMMANDS.includes(interaction.data?.name)) {
         return json(await handleQuoteCommand(interaction, env));
       }
+      if (COOP_COMMANDS.includes(interaction.data?.name)) {
+        return json(await handleCoopCommand(interaction, env));
+      }
       const response = await handleCommand(interaction, env);
       return json(response);
     }
 
     // Suggestions while typing in an autocomplete option
-    // (/gaming's game box, /quotes' who box).
+    // (/gaming, /games and /coop game boxes; /quotes' who box).
     if (interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
       if (QUOTE_COMMANDS.includes(interaction.data?.name)) {
         return json(await handleQuoteAutocomplete(interaction, env));
