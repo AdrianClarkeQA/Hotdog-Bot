@@ -12,7 +12,7 @@ export async function suggestGames(env, typed, limit = MAX_SUGGESTIONS) {
   const key = gameKey(typed);
   if (!key) {
     const { results } = await env.DB.prepare(
-      "SELECT name, name_key FROM games ORDER BY uses DESC, last_used DESC LIMIT ?"
+      "SELECT name, name_key, coop_status FROM games ORDER BY uses DESC, last_used DESC LIMIT ?"
     )
       .bind(limit)
       .all();
@@ -20,7 +20,7 @@ export async function suggestGames(env, typed, limit = MAX_SUGGESTIONS) {
   }
   // instr() rather than LIKE, so %, _ in game names need no escaping.
   const { results } = await env.DB.prepare(
-    `SELECT name, name_key FROM games
+    `SELECT name, name_key, coop_status FROM games
      WHERE instr(name_key, ?1) > 0
      ORDER BY name_key = ?1 DESC, instr(name_key, ?1) = 1 DESC, uses DESC, last_used DESC
      LIMIT ?2`
@@ -61,4 +61,36 @@ export async function removeGame(env, name) {
   if (!row) return null;
   await env.DB.prepare("DELETE FROM games WHERE name_key = ?").bind(row.name_key).run();
   return row;
+}
+
+// Sets a game's co-op status, adding the game to the saved list if it's new
+// (so it's offered by /gaming too). New games start with no sessions posted.
+// Returns { name, previous } — previous is the old status, or null.
+export async function setCoopStatus(env, name, status, userId) {
+  const display = tidyGameName(name).slice(0, MAX_GAME_LEN);
+  const key = gameKey(display);
+  const before = await findGame(env, key);
+  const now = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO games (name_key, name, uses, last_used, added_by, added_at, coop_status)
+     VALUES (?1, ?2, 0, 0, ?3, ?4, ?5)
+     ON CONFLICT(name_key) DO UPDATE SET coop_status = ?5`
+  )
+    .bind(key, display, userId ?? null, now, status)
+    .run();
+  return { name: before?.name ?? display, previous: before?.coop_status ?? null };
+}
+
+// Games on the co-op list, optionally only those with one status, A–Z.
+export async function listCoopGames(env, status = null) {
+  const { results } = status
+    ? await env.DB.prepare(
+        "SELECT name, coop_status FROM games WHERE coop_status = ? ORDER BY name_key"
+      )
+        .bind(status)
+        .all()
+    : await env.DB.prepare(
+        "SELECT name, coop_status FROM games WHERE coop_status IS NOT NULL ORDER BY name_key"
+      ).all();
+  return results ?? [];
 }

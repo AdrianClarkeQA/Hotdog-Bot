@@ -1,5 +1,5 @@
 // One-time (re-run when commands change) registration of /arc, /gaming, /games,
-// /quote, /quotes and the "Save as quote" message menu item.
+// /coop, /quote, /quotes and the "Save as quote" message menu item.
 // Run locally:  node scripts/register-commands.js
 // Requires env vars: DISCORD_TOKEN, DISCORD_APPLICATION_ID, GUILD_ID
 // (guild-scoped commands appear instantly; global ones can take ~1h.)
@@ -146,6 +146,63 @@ const games = {
   ],
 };
 
+// /coop — the co-op games list. Statuses are a fixed picker, so nothing to type.
+// Discord can't mix subcommands with plain options, so it's /coop set <game> <status>.
+const COOP_STATUS_CHOICES = [
+  { name: "Ready", value: "ready" },
+  { name: "Not Purchased", value: "not_purchased" },
+  { name: "Parked", value: "parked" },
+  { name: "Completed It Mate", value: "completed" },
+];
+
+const coop = {
+  name: "coop",
+  description: "Track co-op games and pick one to play",
+  options: [
+    {
+      type: SUB,
+      name: "set",
+      description: "Set a game's co-op status",
+      options: [
+        {
+          type: STRING,
+          name: "game",
+          description: "Pick a saved game or type a new one",
+          required: true,
+          autocomplete: true,
+          max_length: 100,
+        },
+        {
+          type: STRING,
+          name: "status",
+          description: "Where the game's at for us",
+          required: true,
+          choices: COOP_STATUS_CHOICES,
+        },
+      ],
+    },
+    {
+      type: SUB,
+      name: "recommend",
+      description: "Pick a random Ready game",
+    },
+    {
+      type: SUB,
+      name: "list",
+      description: "Show the co-op list",
+      options: [
+        {
+          type: STRING,
+          name: "status",
+          description: "Only show games with this status",
+          required: false,
+          choices: COOP_STATUS_CHOICES,
+        },
+      ],
+    },
+  ],
+};
+
 // /quote <text> — Botdog then asks who said it.
 const quote = {
   name: "quote",
@@ -205,7 +262,7 @@ async function register(command, attempt = 1) {
   return res;
 }
 
-for (const command of [arc, gaming, games, quote, quotes, saveAsQuote]) {
+for (const command of [arc, gaming, games, coop, quote, quotes, saveAsQuote]) {
   const res = await register(command);
   if (res.ok) {
     console.log(`✅ Registered /${command.name}`);
