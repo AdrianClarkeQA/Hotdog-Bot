@@ -115,7 +115,8 @@ export async function handleGamingAutocomplete(interaction, env) {
     if (allowNew && key && !rows.some((r) => r.name_key === key)) {
       const value = typed.slice(0, MAX_GAME_LEN);
       choices = choices.slice(0, MAX_SUGGESTIONS - 1);
-      choices.push({ name: `➕ New game: ${value}`.slice(0, MAX_GAME_LEN), value });
+      const prefix = command === "coop" ? "New game: " : "➕ New game: ";
+      choices.push({ name: `${prefix}${value}`.slice(0, MAX_GAME_LEN), value });
     }
   } catch (err) {
     console.error("Game autocomplete failed:", err.message);
