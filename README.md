@@ -147,17 +147,18 @@ and game details are simply left out.
 **Where details show up**
 
 - **`/games info <game>`** posts a card in the channel: description, Metacritic
-  score, RAWG user rating, release date, genres, platforms, average playtime,
+  score, RAWG user rating, release date, genres, platforms,
   co-op modes, where to buy, age rating, the game's status on our co-op list,
   and a banner image. Works for any game, saved or not; looking up a game
   doesn't add it to the saved list. Botdog first shows "thinking…" while it
   asks RAWG, then fills in the card.
 - **`/gaming` posts** get a small details box under the announcement:
-  Metacritic score, co-op modes, average playtime and a thumbnail.
+  Metacritic score, co-op modes and a thumbnail.
 - **The co-op list** (`/coop list` and the list post) shows each game's
   Metacritic score in italics, e.g. `Helldivers 2 · *Metacritic 82*`, or just
-  the name if RAWG has no score. Average playtime isn't shown in the list, as
-  RAWG's figures aren't reliable enough.
+  the name if RAWG has no score.
+- Average playtime isn't shown anywhere, as RAWG's figures aren't reliable
+  enough.
 
 **How games are matched**
 
@@ -322,6 +323,12 @@ When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 - Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
+
+### Upgrading to v1.10.2
+v1.10.2 removes average playtime from `/gaming` details boxes and the
+`/games info` card, as v1.10.1 did for the co-op list. No database or command
+changes. As a patch release it doesn't repost the command list. Session posts
+already in the channel keep their old details box.
 
 ### Upgrading to v1.10.1
 v1.10.1 restyles the co-op list: Metacritic scores are in italics and average

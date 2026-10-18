@@ -43,7 +43,7 @@ No new commands. This list now reposts itself here whenever a new version is rel
 
 **v1.10 - Game details**
 --------------------
-`/games info <game>` - Show a game's details: Metacritic score, rating, platforms, playtime, co-op modes and more. Works for any game
+`/games info <game>` - Show a game's details: Metacritic score, rating, platforms, co-op modes and more. Works for any game
 `/games link <game> <rawg link>` - Match a saved game to the right game on RAWG *(privileged role only)*
 `/games refresh` - Look up details for saved games that don't have them yet *(privileged role only)*
 Session posts and the co-op list now show Metacritic scores, from RAWG
