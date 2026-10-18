@@ -89,10 +89,11 @@ export const gamingCommand = (game, date, time, roles) => ({
   channel_id: "chan-general",
   data: {
     name: "gaming",
+    // Discord leaves out optional options that weren't filled in.
     options: [
-      { name: "game", type: 3, value: game },
       { name: "date", type: 3, value: date },
       { name: "time", type: 3, value: time },
+      ...(game == null ? [] : [{ name: "game", type: 3, value: game }]),
     ],
   },
 });

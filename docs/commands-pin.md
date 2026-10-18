@@ -14,7 +14,7 @@
 
 **v1.3 - Gaming sessions**
 --------------------
-`/gaming <game> <date> <time>` - Post a planned session in the gaming channel. Dates: today, tomorrow, a weekday, or DD/MM/YYYY. Times are UK time, e.g. 21:00 or 9pm
+`/gaming <date> <time> [game]` - Post a planned session in the gaming channel. Dates: today, tomorrow, a weekday, or DD/MM/YYYY. Times are UK time, e.g. 21:00 or 9pm. Game is optional from v1.9
 `/games remove <game>` - Remove a game from the saved list *(privileged role only)*
 
 **v1.5 - Quotes**
@@ -36,3 +36,7 @@ No new commands. The Co-op Gaming channel now always shows the latest co-op list
 **v1.8 - Self-updating command list**
 --------------------
 No new commands. This list now reposts itself here whenever a new version is released
+
+**v1.9 - Optional game for sessions**
+--------------------
+`/gaming <date> <time>` - Leave out the game to plan a session for a time before deciding what to play. The post says the game is to be decided

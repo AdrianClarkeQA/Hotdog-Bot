@@ -1,7 +1,8 @@
 // Handles /gaming (post a planned session) and /games (manage the saved list),
 // plus the autocomplete for their `game` options.
 //
-//   /gaming <game> <date> <time>   anyone; posts in GAMING_CHANNEL_ID
+//   /gaming <date> <time> [game]   anyone; posts in GAMING_CHANNEL_ID
+//     game is optional: left out, the post says the game is to be decided
 //     date: tomorrow, Saturday, 25/10/2026 …  time: 21:00, 2100, 9pm …
 //   /games remove <game>           privileged role only
 
@@ -44,8 +45,8 @@ export async function handleGamingCommand(interaction, env, ctx) {
 
   if (interaction.data.name === "gaming") {
     const options = interaction.data.options;
-    const game = tidyGameName(opt(options, "game"));
-    if (!game) return reply("Give the game a name.");
+    // Optional: blank means the game is still to be decided.
+    const game = tidyGameName(opt(options, "game") ?? "");
     if (game.length > MAX_GAME_LEN) return reply(`Game names can be up to ${MAX_GAME_LEN} characters.`);
 
     const when = parseSessionTime(opt(options, "date"), opt(options, "time"), {
@@ -59,7 +60,7 @@ export async function handleGamingCommand(interaction, env, ctx) {
     }
 
     // Use the saved spelling if this game is already known.
-    const known = await findGame(env, game);
+    const known = game ? await findGame(env, game) : null;
     const display = known?.name ?? game;
 
     try {
@@ -70,10 +71,13 @@ export async function handleGamingCommand(interaction, env, ctx) {
     }
 
     // Saving the game is a nice-to-have; the session is already posted.
-    try {
-      await recordGame(env, display, userId);
-    } catch (err) {
-      console.error(`Saving game "${display}" failed:`, err.message);
+    // No game means nothing to save.
+    if (display) {
+      try {
+        await recordGame(env, display, userId);
+      } catch (err) {
+        console.error(`Saving game "${display}" failed:`, err.message);
+      }
     }
     return reply(`✅ Posted in <#${channelId}> for <t:${when.unix}:F>.`);
   }

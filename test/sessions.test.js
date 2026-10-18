@@ -144,3 +144,10 @@ test("announcement text", () => {
     "🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)\nCreated by <@42>"
   );
 });
+
+test("announcement text with no game", () => {
+  assert.equal(
+    sessionMessage({ game: "", unix: 1791992700, userId: "42" }),
+    "🎮 **Gaming session** planned for <t:1791992700:F> (<t:1791992700:R>)\nGame to be decided\nCreated by <@42>"
+  );
+});
