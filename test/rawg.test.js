@@ -132,7 +132,7 @@ test("session and info embeds link to RAWG and leave out what RAWG doesn't have"
   const e = sessionEmbed(row);
   assert.equal(e.title, "Deep Rock Galactic");
   assert.equal(e.url, "https://rawg.io/games/deep-rock-galactic");
-  assert.equal(e.description, "Metacritic 84 · Online co-op · 7h avg playtime");
+  assert.equal(e.description, "Metacritic 84 · Online co-op");
   assert.equal(e.footer.text, "Data from RAWG");
   assert.equal(sessionEmbed({ name: "x", rawg_id: null }), null);
 
@@ -141,7 +141,7 @@ test("session and info embeds link to RAWG and leave out what RAWG doesn't have"
   assert.equal(fields.Metacritic, undefined); // no score: no empty field
   assert.equal(fields["RAWG rating"], "4.1 / 5 (690)");
   assert.equal(fields.Released, "13 May 2020");
-  assert.equal(fields["Avg playtime"], "7 hours");
+  assert.equal(fields["Avg playtime"], undefined); // playtime isn't shown
   assert.equal(fields["On our co-op list"], "Ready");
 });
 
@@ -198,7 +198,7 @@ test("/gaming with a new game posts first, then adds RAWG details to the post", 
   assert.equal(edit.method, "PATCH");
   assert.equal(edit.path, "/channels/chan-gaming/messages/msg-1");
   assert.equal(edit.body.flags, 0);
-  assert.equal(edit.body.embeds[0].description, "Metacritic 84 · Online co-op · 7h avg playtime");
+  assert.equal(edit.body.embeds[0].description, "Metacritic 84 · Online co-op");
 
   const saved = env.DB.raw.prepare("SELECT rawg_id, metacritic, rawg_checked_at FROM games").get();
   assert.equal(saved.rawg_id, 9551);

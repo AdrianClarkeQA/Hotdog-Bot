@@ -1,5 +1,5 @@
 // Game details from RAWG in Discord: the /games info card, the details box on
-// /gaming posts, and the short "Metacritic 84 · 18h avg playtime" text used in
+// /gaming posts, and the short italic "Metacritic 84" text used in
 // the co-op list. Plus the /games info, link and refresh commands.
 //
 //   /games info <game>              anyone; posts the game's details card
@@ -29,10 +29,8 @@ export function formatReleased(released) {
   return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
 }
 
-export const formatPlaytime = (hours) => (hours ? `${hours}h avg playtime` : null);
-
 // "*Metacritic 84*" (italic) for the co-op list. Empty when RAWG has no score.
-// Playtime is left out of the list: RAWG's averages aren't reliable enough.
+// Playtime isn't shown anywhere: RAWG's averages aren't reliable enough.
 export function statsText(row) {
   return row?.metacritic ? `*Metacritic ${row.metacritic}*` : "";
 }
@@ -53,7 +51,6 @@ export function sessionEmbed(row) {
   const line = [
     row.metacritic ? `Metacritic ${row.metacritic}` : null,
     row.coop_modes,
-    formatPlaytime(row.playtime),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -80,7 +77,6 @@ export function infoEmbed(game, coopStatus = null) {
     field("Released", formatReleased(game.released)),
     field("Genres", game.genres),
     field("Platforms", game.platforms),
-    field("Avg playtime", game.playtime ? `${game.playtime} hours` : null),
     field("Co-op", game.coop_modes),
     field("Where to buy", game.stores),
     field("Age rating", game.age_rating),
