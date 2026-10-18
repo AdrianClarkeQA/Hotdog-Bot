@@ -18,7 +18,7 @@ import { handleCoopCommand, COOP_COMMANDS } from "./coop.js";
 import { runSweep } from "./sweep.js";
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method !== "POST") {
       return new Response("OK", { status: 200 });
     }
@@ -46,13 +46,13 @@ export default {
 
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
       if (GAMING_COMMANDS.includes(interaction.data?.name)) {
-        return json(await handleGamingCommand(interaction, env));
+        return json(await handleGamingCommand(interaction, env, ctx));
       }
       if (QUOTE_COMMANDS.includes(interaction.data?.name)) {
         return json(await handleQuoteCommand(interaction, env));
       }
       if (COOP_COMMANDS.includes(interaction.data?.name)) {
-        return json(await handleCoopCommand(interaction, env));
+        return json(await handleCoopCommand(interaction, env, ctx));
       }
       const response = await handleCommand(interaction, env);
       return json(response);

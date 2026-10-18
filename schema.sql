@@ -38,6 +38,14 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 CREATE INDEX IF NOT EXISTS quotes_by_speaker ON quotes (speaker_key, posted, created_at);
 
+-- Botdog's co-op list post(s) in COOP_CHANNEL_ID. Normally one row; the
+-- older post is deleted as soon as a newer one is up.
+CREATE TABLE IF NOT EXISTS coop_board_posts (
+  message_id TEXT PRIMARY KEY,
+  channel_id TEXT NOT NULL,
+  posted_at  INTEGER NOT NULL
+);
+
 -- Single-row global switch. id is always 1.
 CREATE TABLE IF NOT EXISTS settings (
   id            INTEGER PRIMARY KEY CHECK (id = 1),
