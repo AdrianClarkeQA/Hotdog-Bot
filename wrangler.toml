@@ -42,3 +42,4 @@ COOP_CHANNEL_ID = "1561169123130605568"
 #   DISCORD_TOKEN         - bot token
 #   DISCORD_PUBLIC_KEY    - app public key (for verifying interactions)
 #   DISCORD_APPLICATION_ID - application id (used by the register script only)
+#   RAWG_API_KEY          - RAWG video game database key, for game details (optional)

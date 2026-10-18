@@ -20,7 +20,21 @@ CREATE TABLE IF NOT EXISTS games (
   last_used INTEGER NOT NULL,           -- ms timestamp of latest session
   added_by  TEXT,                       -- Discord user id who first entered it
   added_at  INTEGER NOT NULL,
-  coop_status TEXT                      -- NULL = not on the co-op list; else ready / not_purchased / parked / completed
+  coop_status TEXT,                     -- NULL = not on the co-op list; else ready / not_purchased / parked / completed
+  -- Game details from RAWG (v1.10.0). All NULL until the game is looked up.
+  rawg_id     INTEGER,                  -- RAWG game id; NULL = no match yet
+  rawg_slug   TEXT,                     -- for the rawg.io/games/<slug> link
+  rawg_name   TEXT,                     -- the game's name on RAWG
+  image_url   TEXT,                     -- RAWG background image
+  metacritic  INTEGER,                  -- Metacritic score, 0-100
+  rawg_rating REAL,                     -- RAWG user rating, out of 5
+  rawg_ratings_count INTEGER,
+  released    TEXT,                     -- YYYY-MM-DD, or TBA
+  playtime    INTEGER,                  -- average hours played
+  genres      TEXT,                     -- comma-separated
+  platforms   TEXT,                     -- comma-separated
+  coop_modes  TEXT,                     -- e.g. "Online co-op, Split-screen"
+  rawg_checked_at INTEGER               -- ms timestamp of the last lookup; NULL = never looked up
 );
 
 -- Saved quotes (/quote, /quotes, "Save as quote"). A /quote row starts with

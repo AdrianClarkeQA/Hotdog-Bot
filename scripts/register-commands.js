@@ -124,11 +124,54 @@ const gaming = {
   ],
 };
 
-// /games remove <game> — tidy the saved list (privileged role only).
+// /games info <game> — game details from RAWG (anyone).
+// /games remove, link, refresh — tidy the saved list (privileged role only).
 const games = {
   name: "games",
-  description: "Manage the saved game list",
+  description: "Game details, and manage the saved game list",
   options: [
+    {
+      type: SUB,
+      name: "info",
+      description: "Show a game's details: ratings, platforms, playtime and more",
+      options: [
+        {
+          type: STRING,
+          name: "game",
+          description: "Pick a saved game or type any game",
+          required: true,
+          autocomplete: true,
+          max_length: 100,
+        },
+      ],
+    },
+    {
+      type: SUB,
+      name: "link",
+      description: "Match a saved game to the right game on RAWG",
+      options: [
+        {
+          type: STRING,
+          name: "game",
+          description: "Saved game to match",
+          required: true,
+          autocomplete: true,
+          max_length: 100,
+        },
+        {
+          type: STRING,
+          name: "rawg",
+          description: "The game's RAWG page link, e.g. https://rawg.io/games/deep-rock-galactic",
+          required: true,
+          max_length: 200,
+        },
+      ],
+    },
+    {
+      type: SUB,
+      name: "refresh",
+      description: "Look up RAWG details for saved games that don't have them yet",
+    },
     {
       type: SUB,
       name: "remove",

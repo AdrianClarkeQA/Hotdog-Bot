@@ -1,7 +1,7 @@
 # Discord Channel Archiver
 
 A Cloudflare Worker that automatically archives inactive Discord channels and
-restores them when activity returns, posts planned gaming sessions, tracks co-op games, and saves quotes. Config is per-channel, controlled from
+restores them when activity returns, posts planned gaming sessions, tracks co-op games, shows game details from RAWG, and saves quotes. Config is per-channel, controlled from
 Discord by a privileged role.
 
 ## How it works
@@ -56,7 +56,10 @@ quiet channel isn't swept straight back into the archive the next morning.
 | Command | Who | Effect |
 |---|---|---|
 | `/gaming <date> <time> [game]` | Everyone | Posts a planned session in the gaming channel |
+| `/games info <game>` | Everyone | Posts a game's details card (see **Game details**) |
 | `/games remove <game>` | Privileged role | Removes a game from the saved list |
+| `/games link <game> <rawg link>` | Privileged role | Matches a saved game to the right game on RAWG |
+| `/games refresh` | Privileged role | Looks up RAWG details for saved games that don't have them |
 
 `/gaming` posts in the channel set by `GAMING_CHANNEL_ID`, wherever it's typed:
 
@@ -134,6 +137,52 @@ list:
   in that channel. It only deletes its own list posts, never anyone else's
   messages. With `COOP_CHANNEL_ID` empty, nothing is posted.
 
+## Game details
+
+Botdog pulls ratings, images and details for games from
+[RAWG](https://rawg.io), a free video game database. It needs the
+`RAWG_API_KEY` secret (see **Set secrets**); without it everything else works
+and game details are simply left out.
+
+**Where details show up**
+
+- **`/games info <game>`** posts a card in the channel: description, Metacritic
+  score, RAWG user rating, release date, genres, platforms, average playtime,
+  co-op modes, where to buy, age rating, the game's status on our co-op list,
+  and a banner image. Works for any game, saved or not; looking up a game
+  doesn't add it to the saved list. Botdog first shows "thinking…" while it
+  asks RAWG, then fills in the card.
+- **`/gaming` posts** get a small details box under the announcement:
+  Metacritic score, co-op modes, average playtime and a thumbnail.
+- **The co-op list** (`/coop list` and the list post) shows each game as
+  `Helldivers 2 · Metacritic 82 · 18h avg playtime`, leaving out whatever RAWG
+  doesn't have.
+
+**How games are matched**
+
+- A game is looked up the first time it's saved: after its first `/gaming`
+  post (the details box is added to the post a moment later) or when it's
+  added with `/coop set` (before the list post updates). The result is saved,
+  so later posts don't ask RAWG again.
+- RAWG's search is fuzzy, so Botdog picks the result whose name matches and
+  that's popular on RAWG. "Halo" matches Halo Infinite rather than a little
+  itch.io game also called "Halo". If it picks the wrong game, or finds
+  nothing, fix it with `/games link <game> <rawg link>`: find the game on
+  [rawg.io](https://rawg.io) and paste its page link, e.g.
+  `https://rawg.io/games/deep-rock-galactic`.
+- Games saved before v1.10.0 have no details until `/games refresh` is run. It
+  looks up 20 games per run (staying inside Cloudflare's per-request limits),
+  lists any it couldn't find, and says if there are more to do. Each run also
+  retries earlier misses, oldest first.
+- RAWG data is community-made, so some games have gaps (no Metacritic score,
+  no co-op tags). Missing details are left out rather than shown as blank.
+
+**RAWG's terms**: the free plan allows 20,000 requests a month (Botdog uses a
+handful per new game) and asks for a link back to RAWG wherever its data is
+shown. Every card and details box links to the game's RAWG page and says
+"Data from RAWG"; the co-op list ends with a RAWG link when it shows any
+RAWG data.
+
 ## Quotes
 
 | Command | Who | Effect |
@@ -209,7 +258,11 @@ Replace the placeholders under `[vars]`:
 ```bash
 npx wrangler secret put DISCORD_TOKEN
 npx wrangler secret put DISCORD_PUBLIC_KEY
+npx wrangler secret put RAWG_API_KEY
 ```
+`RAWG_API_KEY` is optional: get a free key at <https://rawg.io/apidocs>. For
+local testing with `npm run dev`, put the same names and values in `.dev.vars`
+(ignored by Git, so never committed).
 
 ### 7. Register the slash commands
 ```bash
@@ -268,6 +321,28 @@ When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 - Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
+
+### Upgrading to v1.10.0
+v1.10.0 adds game details from RAWG: `/games info`, `/games link`,
+`/games refresh`, details boxes on `/gaming` posts, and Metacritic and
+playtime on the co-op list.
+1. Add the new database columns (run once; a second run errors with
+   "duplicate column", which is harmless):
+   ```bash
+   npm run db:migrate:rawg
+   ```
+2. Add the RAWG key to Cloudflare:
+   ```bash
+   npx wrangler secret put RAWG_API_KEY
+   ```
+3. Merge the pull request. The deploy runs automatically and, as a minor
+   release, reposts the command list.
+4. Re-register commands so `/games info`, `link` and `refresh` appear:
+   ```bash
+   DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+   ```
+5. Run `/games refresh` until it says every game is done, then use
+   `/games link` for any it couldn't find.
 
 ### Upgrading to v1.9.0
 v1.9.0 makes the game optional in `/gaming`, so a session can be planned for a
