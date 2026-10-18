@@ -16,7 +16,7 @@ import {
 } from "./sessions.js";
 import { suggestGames, findGame, recordGame, removeGame, MAX_SUGGESTIONS } from "./games-db.js";
 import { postMessage } from "./discord.js";
-import { COOP_STATUSES } from "./coop.js";
+import { COOP_STATUSES, refreshCoopBoard, afterReply } from "./coop.js";
 
 const COOP_LABELS = Object.fromEntries(Object.entries(COOP_STATUSES).map(([k, v]) => [k, v.label]));
 
@@ -39,7 +39,7 @@ function gameOptions(interaction) {
   return interaction.data?.name === "gaming" ? top : top[0]?.options ?? [];
 }
 
-export async function handleGamingCommand(interaction, env) {
+export async function handleGamingCommand(interaction, env, ctx) {
   const userId = interaction.member?.user?.id ?? interaction.user?.id;
 
   if (interaction.data.name === "gaming") {
@@ -86,6 +86,10 @@ export async function handleGamingCommand(interaction, env) {
   const sub = interaction.data.options?.[0];
   if (sub?.name === "remove") {
     const removed = await removeGame(env, opt(sub.options, "game"));
+    // A game leaving the co-op list changes the list post too.
+    if (removed?.coop_status) {
+      afterReply(ctx, refreshCoopBoard(env, `**${escapeMarkdown(removed.name)}** removed`));
+    }
     return removed
       ? reply(`🗑️ Removed **${escapeMarkdown(removed.name)}** from the game list.`)
       : reply("That game isn't in the list.");

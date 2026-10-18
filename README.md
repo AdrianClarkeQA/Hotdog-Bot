@@ -107,6 +107,30 @@ Statuses, picked from a list so there's nothing to type:
   Discord doesn't let one command mix subcommands (`recommend`) with plain options.
 - `/games remove` deletes a game entirely, including its co-op status.
 
+### The co-op list post
+Botdog keeps one post in the channel set by `COOP_CHANNEL_ID` (the
+"Co-op Gaming" channel) listing every co-op game by status. Whenever a status
+changes, or a co-op game is removed with `/games remove`, it posts the updated
+list and deletes its previous post, so the channel only ever holds the latest
+list:
+
+> **Co-op games**
+> Last change: **Halo**: Ready → Parked, by @Ade (2 minutes ago)
+>
+> **Ready** (1)
+> • Valheim
+>
+> **Parked** (1)
+> • Halo
+
+- The new list is posted before the old one is deleted, so the channel is never
+  empty. If posting fails, the old list stays up and the status change still saves.
+- Setting a game to the status it already has doesn't post anything.
+- The list only appears after the first status change once this is set up.
+- Botdog needs **View Channel**, **Send Messages** and **Read Message History**
+  in that channel. It only deletes its own list posts, never anyone else's
+  messages. With `COOP_CHANNEL_ID` empty, nothing is posted.
+
 ## Quotes
 
 | Command | Who | Effect |
@@ -215,6 +239,21 @@ Actions** and add:
 
 Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
 GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+
+### Upgrading to v1.7.0
+v1.7.0 adds the co-op list post. Before the v1.7.0 code goes live:
+1. Create the `coop_board_posts` table (safe to run more than once):
+   ```bash
+   npm run db:migrate:coopboard
+   ```
+2. Set `COOP_CHANNEL_ID` in `wrangler.toml` to the "Co-op Gaming" channel's ID.
+   Botdog needs **View Channel**, **Send Messages** and **Read Message History** there.
+3. No command changes, so there's no need to re-register commands.
+4. Optional, one time: import the co-op games and statuses from the Notion
+   "Co-op Gaming Suggestions" database (safe to run more than once):
+   ```bash
+   npx wrangler d1 execute hotdog-db --remote --file=./seeds/coop-from-notion.sql
+   ```
 
 ### Upgrading to v1.6.0
 v1.6.0 adds the co-op games list (`/coop`). Before the v1.6.0 code goes live:

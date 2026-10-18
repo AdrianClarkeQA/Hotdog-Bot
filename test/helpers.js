@@ -47,6 +47,8 @@ export function makeEnv(overrides = {}) {
 // Sends a signed interaction through the Worker; returns the parsed JSON reply.
 export async function send(env, interaction) {
   const body = JSON.stringify(interaction);
+  const pending = [];
+  const ctx = { waitUntil: (p) => pending.push(p) };
   const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = sign(null, Buffer.from(timestamp + body), privateKey).toString("hex");
   const res = await worker.fetch(
@@ -55,8 +57,11 @@ export async function send(env, interaction) {
       headers: { "x-signature-ed25519": signature, "x-signature-timestamp": timestamp },
       body,
     }),
-    env
+    env,
+    ctx
   );
+  // Let work queued with ctx.waitUntil (e.g. the co-op list post) finish too.
+  await Promise.all(pending);
   return res.json();
 }
 

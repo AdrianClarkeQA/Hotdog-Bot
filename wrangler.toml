@@ -33,6 +33,10 @@ TIMEZONE = "Europe/London"
 # Channel where /quote and "Save as quote" post quotes. Botdog needs View
 # Channel and Send Messages there. /quote replies with a warning until it's set.
 QUOTES_CHANNEL_ID = "1110918112934629407"
+# Channel ("Co-op Gaming") where Botdog keeps one post listing every co-op game
+# and its status, replaced whenever a status changes. Botdog needs View Channel,
+# Send Messages and Read Message History there. Empty = no post.
+COOP_CHANNEL_ID = "1561169123130605568"
 
 # Secrets (set via `wrangler secret put NAME`, never commit these):
 #   DISCORD_TOKEN         - bot token
