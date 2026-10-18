@@ -1,6 +1,6 @@
 {
   "name": "discord-channel-archiver",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Cloudflare Worker that auto-archives inactive Discord channels, posts planned gaming sessions, tracks co-op games and saves quotes.",
   "type": "module",
   "scripts": {
@@ -17,6 +17,8 @@
     "db:migrate:quotes:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0003_add_quotes.sql",
     "db:migrate:coop": "wrangler d1 execute hotdog-db --remote --file=./migrations/0004_add_coop_status.sql",
     "db:migrate:coop:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0004_add_coop_status.sql",
+    "db:migrate:coopboard": "wrangler d1 execute hotdog-db --remote --file=./migrations/0005_add_coop_board.sql",
+    "db:migrate:coopboard:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0005_add_coop_board.sql",
     "test": "node --test --no-warnings \"test/*.test.js\""
   },
   "dependencies": {

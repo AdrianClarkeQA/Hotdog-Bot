@@ -61,4 +61,9 @@ export async function postMessage(env, channelId, content) {
   });
 }
 
+// Delete a message. A message that's already gone (404) counts as deleted.
+export async function deleteMessage(env, channelId, messageId) {
+  return rest(env, "DELETE", `/channels/${channelId}/messages/${messageId}`);
+}
+
 export { rest };
