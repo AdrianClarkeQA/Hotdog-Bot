@@ -172,9 +172,12 @@ export function escapeMarkdown(text) {
 }
 
 // The announcement posted in the gaming channel.
+// With no game, the post says the game is still to be decided.
 export function sessionMessage({ game, unix, userId }) {
+  const title = game ? `**${escapeMarkdown(game)}** session` : "**Gaming session**";
   return (
-    `🎮 **${escapeMarkdown(game)}** session planned for <t:${unix}:F> (<t:${unix}:R>)` +
+    `🎮 ${title} planned for <t:${unix}:F> (<t:${unix}:R>)` +
+    (game ? "" : "\nGame to be decided") +
     (userId ? `\nCreated by <@${userId}>` : "")
   );
 }

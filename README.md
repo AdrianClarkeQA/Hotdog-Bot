@@ -55,7 +55,7 @@ quiet channel isn't swept straight back into the archive the next morning.
 
 | Command | Who | Effect |
 |---|---|---|
-| `/gaming <game> <date> <time>` | Everyone | Posts a planned session in the gaming channel |
+| `/gaming <date> <time> [game]` | Everyone | Posts a planned session in the gaming channel |
 | `/games remove <game>` | Privileged role | Removes a game from the saved list |
 
 `/gaming` posts in the channel set by `GAMING_CHANNEL_ID`, wherever it's typed:
@@ -63,9 +63,12 @@ quiet channel isn't swept straight back into the archive the next morning.
 > 🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)
 > Created by @Ade
 
-- **Game**: pick from the saved list or type a new name. The list fills itself:
-  every game posted is saved. Most-used games are suggested first; matching is
-  case-insensitive, so "helldivers 2" reuses the saved "Helldivers 2".
+- **Game** (optional): pick from the saved list or type a new name. The list
+  fills itself: every game posted is saved. Most-used games are suggested
+  first; matching is case-insensitive, so "helldivers 2" reuses the saved
+  "Helldivers 2". Leave it out to plan a session before picking a game; the
+  post then reads "**Gaming session** planned for ..." with "Game to be
+  decided" underneath, and nothing is added to the saved list.
 - **Date**: `today`/`tonight`, `tomorrow` (or `tmrw`), a weekday (`Saturday`
   or `sat` — the next one; today's weekday means today if the time is still to
   come), `DD/MM/YYYY`, or `DD/MM` for the next occurrence.
@@ -265,6 +268,19 @@ When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 - Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
+
+### Upgrading to v1.9.0
+v1.9.0 makes the game optional in `/gaming`, so a session can be planned for a
+time without choosing a game. Discord needs required options before optional
+ones, so the command is now `/gaming <date> <time> [game]`.
+1. No database changes.
+2. Merge the pull request. The deploy runs automatically and, as a minor
+   release, reposts the command list.
+3. Re-register commands so Discord picks up the new option order:
+   ```bash
+   DISCORD_TOKEN=... DISCORD_APPLICATION_ID=... GUILD_ID=... npm run register
+   ```
+   Until this is done, Discord still shows the game as required.
 
 ### Upgrading to v1.8.1
 v1.8.1 drops the divider line above each version heading and stops pinning the
