@@ -92,20 +92,13 @@ const arc = {
   ],
 };
 
-// /gaming <game> <date> <time> — game has autocomplete from the saved list,
-// but anything typed is accepted too.
+// /gaming <date> <time> [game] — game is optional (blank = to be decided) and has
+// autocomplete from the saved list, but anything typed is accepted too.
+// Discord needs required options before optional ones, so game comes last.
 const gaming = {
   name: "gaming",
   description: "Post a planned gaming session",
   options: [
-    {
-      type: STRING,
-      name: "game",
-      description: "Pick a saved game or type a new one",
-      required: true,
-      autocomplete: true,
-      max_length: 100,
-    },
     {
       type: STRING,
       name: "date",
@@ -119,6 +112,14 @@ const gaming = {
       description: "UK time, e.g. 21:00, 2100 or 9pm",
       required: true,
       max_length: 10,
+    },
+    {
+      type: STRING,
+      name: "game",
+      description: "Optional: pick a saved game or type a new one",
+      required: false,
+      autocomplete: true,
+      max_length: 100,
     },
   ],
 };

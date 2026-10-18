@@ -58,6 +58,37 @@ test("/gaming saves new games and counts repeat uses under one entry", async () 
   assert.match(discord.calls[1].body.content, /\*\*Helldivers 2\*\*/);
 });
 
+test("/gaming with no game posts 'to be decided' and saves nothing", async () => {
+  const env = makeEnv();
+  discord = mockDiscord();
+  const r = await send(env, gamingCommand(undefined, DATE, "20:00"));
+
+  assert.match(r.data.content, /^✅ Posted in <#chan-gaming> for <t:\d+:F>\.$/);
+  assert.equal(discord.calls.length, 1);
+  assert.match(
+    discord.calls[0].body.content,
+    /^🎮 \*\*Gaming session\*\* planned for <t:(\d+):F> \(<t:\1:R>\)\nGame to be decided\nCreated by <@user-1>$/
+  );
+  assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 0);
+});
+
+test("/gaming with a blank game is treated as no game", async () => {
+  const env = makeEnv();
+  discord = mockDiscord();
+  const r = await send(env, gamingCommand("   ", DATE, "20:00"));
+  assert.match(r.data.content, /^✅ Posted in/);
+  assert.match(discord.calls[0].body.content, /Gaming session\*\* planned[\s\S]*Game to be decided/);
+  assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 0);
+});
+
+test("/gaming with no game still rejects a bad date", async () => {
+  const env = makeEnv();
+  discord = mockDiscord();
+  const r = await send(env, gamingCommand(undefined, "31/02/2027", "20:00"));
+  assert.match(r.data.content, /isn't a real date/);
+  assert.equal(discord.calls.length, 0);
+});
+
 test("/gaming escapes markdown and doesn't ping @everyone in game names", async () => {
   const env = makeEnv();
   discord = mockDiscord();
