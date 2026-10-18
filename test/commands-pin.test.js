@@ -45,7 +45,7 @@ test("the real command list fills in the version and fits Discord's limit", asyn
 
 test("a long list splits between version sections, never inside one", () => {
   const section = (n) =>
-    `----------\n**v1.${n} - Thing ${n}**\n----------\n\`/cmd${n}\` - ${"x".repeat(80)}`;
+    `**v1.${n} - Thing ${n}**\n----------\n\`/cmd${n}\` - ${"x".repeat(80)}`;
   const text = [`${MARKER}** - current version: v1.9.0`, ...[1, 2, 3, 4, 5].map(section)].join("\n\n");
 
   const messages = splitIntoMessages(text, 300);
@@ -79,16 +79,15 @@ function fakeDiscord({ messages = [], pins = [], oldPinsEndpointOnly = false } =
       return ok({ items: messages.filter((m) => pins.includes(m.id)).map((message) => ({ message })), has_more: false });
     }
     if (path.endsWith("/pins") && method === "GET") return ok(messages.filter((m) => pins.includes(m.id)));
-    if (path.endsWith("/messages?limit=100")) return ok([...messages].reverse());
+    if (path.includes("/messages?limit=100")) {
+      const before = new URL(`https://x${path}`).searchParams.get("before");
+      const newestFirst = [...messages].reverse().filter((m) => !before || Number(m.id) < Number(before));
+      return ok(newestFirst.slice(0, 100));
+    }
     if (method === "POST") {
       const msg = { id: String(nextId++), author: { id: "bot" }, ...JSON.parse(body) };
       messages.push(msg);
       return ok(msg);
-    }
-    if (method === "PUT") {
-      if (oldPinsEndpointOnly && path.includes("/messages/pins/")) return ok({ message: "404" }, 404);
-      pins.push(path.split("/").pop());
-      return ok(null, 204);
     }
     if (method === "DELETE") {
       const id = path.split("/").pop();
@@ -101,7 +100,7 @@ function fakeDiscord({ messages = [], pins = [], oldPinsEndpointOnly = false } =
   return { calls, messages, pins };
 }
 
-test("posts and pins the new list, then deletes only Botdog's old list", async () => {
+test("posts the new list, then deletes only Botdog's old list, and pins nothing", async () => {
   const fake = fakeDiscord({
     messages: [
       { id: "1", author: { id: "bot" }, content: `${MARKER}** - current version: v1.7.0` },
@@ -116,8 +115,9 @@ test("posts and pins the new list, then deletes only Botdog's old list", async (
 
   assert.deepEqual(result.deleted.sort(), ["1", "2"]);
   assert.deepEqual(fake.messages.map((m) => m.id), ["3", "4", "900", "901"]);
-  // New parts pinned last-first, so part 1 is the most recent pin (top of the list).
-  assert.deepEqual(fake.pins, ["3", "901", "900"]);
+  // Old pinned list gone with its message; the person's pin untouched; nothing new pinned.
+  assert.deepEqual(fake.pins, ["3"]);
+  assert.ok(!fake.calls.some((c) => c.startsWith("PUT")));
   // New list posted before anything was deleted.
   const firstDelete = fake.calls.findIndex((c) => c.startsWith("DELETE"));
   const lastPost = fake.calls.findLastIndex((c) => c.startsWith("POST"));
@@ -136,15 +136,29 @@ test("posts never ping anyone", async () => {
   assert.deepEqual(sent.allowed_mentions, { parse: [] });
 });
 
-test("falls back to the older pins endpoint when the new one isn't available", async () => {
+test("finds an old pinned list through the older pins endpoint when the new one isn't available", async () => {
   const fake = fakeDiscord({
     messages: [{ id: "1", author: { id: "bot" }, content: `${MARKER}** old` }],
     pins: ["1"],
     oldPinsEndpointOnly: true,
   });
-  await postCommandList({ token: "t", channelId: "c", messages: ["new"] });
-  assert.deepEqual(fake.pins, ["900"]);
-  assert.ok(fake.calls.includes("PUT /channels/c/pins/900"));
+  const { deleted } = await postCommandList({ token: "t", channelId: "c", messages: ["new"] });
+  assert.deepEqual(deleted, ["1"]);
+  assert.ok(fake.calls.includes("GET /channels/c/pins"));
+});
+
+test("finds an old list further back than the last 100 messages", async () => {
+  const chatter = Array.from({ length: 250 }, (_, i) => ({
+    id: String(i + 2),
+    author: { id: "someone" },
+    content: "chat",
+  }));
+  const fake = fakeDiscord({
+    messages: [{ id: "1", author: { id: "bot" }, content: `${MARKER}** old` }, ...chatter],
+  });
+  const { deleted } = await postCommandList({ token: "t", channelId: "c", messages: ["new"] });
+  assert.deepEqual(deleted, ["1"]);
+  assert.ok(!fake.messages.some((m) => m.id === "1"));
 });
 
 test("if posting fails, the old list is left alone", async () => {

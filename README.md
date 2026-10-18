@@ -245,24 +245,33 @@ Other bot secrets stay in Cloudflare and are not needed in GitHub. D1 schema cha
 When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 2.0.0), the workflow runs `scripts/post-commands-pin.js`. It posts
 `docs/commands-pin.md` in the commands channel (`COMMANDS_CHANNEL_ID` in
-`deploy.yml`), pins it, then deletes Botdog's previous command list.
+`deploy.yml`), then deletes Botdog's previous command list. Nothing is pinned.
 
 - Patch releases (1.8.0 to 1.8.1) and re-runs of an already-tagged version
   don't post.
 - `{{VERSION}}` in the file is replaced with the version from `package.json`.
 - Over 2,000 characters, the list is split between version sections into
   several messages; later ones start with "**Botdog commands (continued)**".
+- Each version section is a bold heading with a divider line under it; the
+  list is only ever split between sections.
 - The new list is posted before the old one is deleted. Old lists are found by
-  being Botdog's own messages starting with "**Botdog commands**", so other
-  messages are never touched. If posting fails, the old list stays and the
+  being Botdog's own messages starting with "**Botdog commands**" among the
+  channel's last 500 messages and its pins, so other messages are never touched. If posting fails, the old list stays and the
   deploy still succeeds.
-- Botdog needs **View Channel**, **Send Messages**, **Read Message History**
-  and **Pin Messages** in that channel.
+- Botdog needs **View Channel**, **Send Messages** and **Read Message History**
+  in that channel.
 - To repost without a new version: **Actions → Deploy Botdog → Run workflow**,
   tick **Repost the command list**, then **Run workflow**.
 - Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
+
+### Upgrading to v1.8.1
+v1.8.1 drops the divider line above each version heading and stops pinning the
+command list. As a patch release it doesn't post on its own, so after it
+deploys, repost once from **Actions → Deploy Botdog → Run workflow** with
+**Repost the command list** ticked. That also deletes the pinned v1.8.0 list.
+**Pin Messages** is no longer needed in the commands channel.
 
 ### Upgrading to v1.8.0
 v1.8.0 posts the command list automatically on major and minor releases.

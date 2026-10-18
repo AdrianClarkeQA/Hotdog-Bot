@@ -1,5 +1,5 @@
 // Posts the command list (docs/commands-pin.md) in the commands channel,
-// pins it, then unpins and deletes Botdog's previous command list.
+// then deletes Botdog's previous command list. Nothing is pinned.
 //
 // Run by the deploy workflow after a major or minor release. Can also be run by
 // hand:  node scripts/post-commands-pin.js
@@ -22,8 +22,8 @@ export function fillVersion(template, version) {
 }
 
 // Splits the list into messages of at most `max` characters. Splits only
-// between version sections (each section starts with a divider line), and
-// starts every extra message with a "(continued)" heading.
+// between version sections (each section is a heading line with a divider
+// line under it), and starts every extra message with a "(continued)" heading.
 export function splitIntoMessages(text, max = MAX_LENGTH) {
   if (text.length <= max) return [text];
 
@@ -31,9 +31,9 @@ export function splitIntoMessages(text, max = MAX_LENGTH) {
   const sections = [];
   let current = [];
   for (let i = 0; i < lines.length; i++) {
-    // A section begins at a divider that is followed by a heading and another divider.
+    // A section begins at a heading: a non-divider line with a divider directly under it.
     const startsSection =
-      DIVIDER.test(lines[i]) && DIVIDER.test(lines[i + 2] ?? "") && current.length > 0;
+      !DIVIDER.test(lines[i]) && DIVIDER.test(lines[i + 1] ?? "") && current.length > 0;
     if (startsSection) {
       sections.push(current.join("\n").trim());
       current = [];
@@ -99,8 +99,9 @@ async function json(res, what) {
   return res.status === 204 ? null : res.json();
 }
 
-// Pinned messages in the channel. Uses the current pins endpoint and falls back
-// to the older one if Discord doesn't recognise it.
+// Pinned messages in the channel. Only read, to find command lists that were
+// pinned by v1.8.0 so they are cleaned up too. Uses the current pins
+// endpoint and falls back to the older one if Discord doesn't recognise it.
 async function pinnedMessages(channelId, token) {
   const res = await discord("GET", `/channels/${channelId}/messages/pins?limit=50`, token);
   if (res.ok) return (await res.json()).items.map((item) => item.message);
@@ -108,11 +109,20 @@ async function pinnedMessages(channelId, token) {
   return json(await discord("GET", `/channels/${channelId}/pins`, token), "Reading pins");
 }
 
-async function pin(channelId, messageId, token) {
-  const res = await discord("PUT", `/channels/${channelId}/messages/pins/${messageId}`, token);
-  if (res.ok) return;
-  if (res.status !== 404) return json(res, "Pinning");
-  await json(await discord("PUT", `/channels/${channelId}/pins/${messageId}`, token), "Pinning");
+// The channel's last `max` messages, newest first, read 100 at a time.
+async function recentMessages(channelId, token, max = 500) {
+  const all = [];
+  let before = "";
+  while (all.length < max) {
+    const page = await json(
+      await discord("GET", `/channels/${channelId}/messages?limit=100${before}`, token),
+      "Reading recent messages",
+    );
+    all.push(...page);
+    if (page.length < 100) break;
+    before = `&before=${page[page.length - 1].id}`;
+  }
+  return all;
 }
 
 export async function postCommandList({ token, channelId, messages }) {
@@ -121,10 +131,7 @@ export async function postCommandList({ token, channelId, messages }) {
 
   // Find old lists before posting, so the new ones are never mistaken for old.
   const pinned = await pinnedMessages(channelId, token);
-  const recent = await json(
-    await discord("GET", `/channels/${channelId}/messages?limit=100`, token),
-    "Reading recent messages",
-  );
+  const recent = await recentMessages(channelId, token);
   const oldIds = [...new Set([...pinned, ...recent].filter(isOldList).map((m) => m.id))];
 
   // Post the new list first, so the channel is never left without one.
@@ -139,10 +146,7 @@ export async function postCommandList({ token, channelId, messages }) {
     );
     posted.push(msg.id);
   }
-  // Pin last part first, so part 1 sits at the top of the pins list.
-  for (const id of [...posted].reverse()) await pin(channelId, id, token);
 
-  // Deleting a pinned message also removes the pin.
   for (const id of oldIds) {
     const res = await discord("DELETE", `/channels/${channelId}/messages/${id}`, token);
     if (!res.ok && res.status !== 404) await json(res, "Deleting the old command list");
