@@ -1,6 +1,7 @@
 // D1 access for the saved list of games offered by /gaming autocomplete.
 
 import { gameKey, tidyGameName, MAX_GAME_LEN } from "./sessions.js";
+import { findOnRawg, hasRawg } from "./rawg.js";
 
 // Discord shows at most 25 autocomplete choices.
 export const MAX_SUGGESTIONS = 25;
@@ -106,15 +107,78 @@ export async function forgetBoardPost(env, messageId) {
 }
 
 // Games on the co-op list, optionally only those with one status, A–Z.
+// Includes the RAWG details shown on each line of the list.
+const COOP_COLUMNS = "name, coop_status, rawg_id, metacritic, playtime";
 export async function listCoopGames(env, status = null) {
   const { results } = status
     ? await env.DB.prepare(
-        "SELECT name, coop_status FROM games WHERE coop_status = ? ORDER BY name_key"
+        `SELECT ${COOP_COLUMNS} FROM games WHERE coop_status = ? ORDER BY name_key`
       )
         .bind(status)
         .all()
     : await env.DB.prepare(
-        "SELECT name, coop_status FROM games WHERE coop_status IS NOT NULL ORDER BY name_key"
+        `SELECT ${COOP_COLUMNS} FROM games WHERE coop_status IS NOT NULL ORDER BY name_key`
       ).all();
   return results ?? [];
+}
+
+// RAWG fields saved on a game row (see migrations/0006_add_rawg.sql).
+export const RAWG_FIELDS = [
+  "rawg_id",
+  "rawg_slug",
+  "rawg_name",
+  "image_url",
+  "metacritic",
+  "rawg_rating",
+  "rawg_ratings_count",
+  "released",
+  "playtime",
+  "genres",
+  "platforms",
+  "coop_modes",
+];
+
+// Saves what RAWG returned for a game. A null summary (no match) only records
+// that the game was looked up, keeping any details saved before.
+export async function saveRawg(env, nameKey, summary) {
+  const now = Date.now();
+  if (!summary) {
+    await env.DB.prepare("UPDATE games SET rawg_checked_at = ? WHERE name_key = ?").bind(now, nameKey).run();
+    return;
+  }
+  const sets = RAWG_FIELDS.map((f) => `${f} = ?`).join(", ");
+  await env.DB.prepare(`UPDATE games SET ${sets}, rawg_checked_at = ? WHERE name_key = ?`)
+    .bind(...RAWG_FIELDS.map((f) => summary[f] ?? null), now, nameKey)
+    .run();
+}
+
+// Looks a saved game up on RAWG the first time it's seen, and saves the
+// result. Games already looked up (matched or not) are left alone; /games
+// refresh and /games link are how a missed or wrong match gets fixed.
+// Returns the updated row, or null if nothing new was found.
+export async function lookUpIfNew(env, name) {
+  if (!hasRawg(env)) return null;
+  const row = await findGame(env, name);
+  if (!row || row.rawg_checked_at) return null;
+  const summary = await findOnRawg(env, row.name);
+  await saveRawg(env, row.name_key, summary);
+  return summary ? findGame(env, row.name_key) : null;
+}
+
+// Saved games with no RAWG match yet: never looked up first, then the ones
+// RAWG didn't find, oldest attempt first.
+export async function unmatchedGames(env, limit) {
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM games WHERE rawg_id IS NULL
+     ORDER BY rawg_checked_at IS NOT NULL, rawg_checked_at, name_key LIMIT ?`
+  )
+    .bind(limit)
+    .all();
+  return results ?? [];
+}
+
+// Saved games never looked up on RAWG.
+export async function countUnchecked(env) {
+  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM games WHERE rawg_checked_at IS NULL").first();
+  return row?.n ?? 0;
 }

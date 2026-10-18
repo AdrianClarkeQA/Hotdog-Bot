@@ -18,8 +18,11 @@ import {
   recordBoardPost,
   olderBoardPosts,
   forgetBoardPost,
+  lookUpIfNew,
 } from "./games-db.js";
 import { postMessage, deleteMessage } from "./discord.js";
+import { statsText } from "./game-info.js";
+import { RAWG_SITE } from "./rawg.js";
 
 export const COOP_COMMANDS = ["coop"];
 
@@ -58,6 +61,16 @@ export function pickRandom(items, random = Math.random) {
   return items[Math.floor(random() * items.length)];
 }
 
+// Credit line RAWG asks for wherever its data is shown. The <> stops the
+// link unfurling into a preview.
+export const RAWG_CREDIT = `Game data from [RAWG](<${RAWG_SITE}>)`;
+
+// One game on the list: its name, then Metacritic and playtime when RAWG has them.
+export function coopLine(row) {
+  const stats = statsText(row);
+  return `• ${escapeMarkdown(row.name)}${stats ? ` · ${stats}` : ""}`;
+}
+
 // The /coop list text: one section per status, games A–Z. Trims to fit
 // Discord's message limit, saying how many were left off.
 export function coopListMessage(rows, onlyStatus = null, maxLength = MAX_MESSAGE) {
@@ -67,11 +80,13 @@ export function coopListMessage(rows, onlyStatus = null, maxLength = MAX_MESSAGE
     const games = rows.filter((r) => r.coop_status === status);
     if (!games.length && !onlyStatus) continue;
     lines.push(`**${statusText(status)}** (${games.length})`);
-    lines.push(games.length ? games.map((g) => `• ${escapeMarkdown(g.name)}`).join("\n") : "_None yet_");
+    lines.push(games.length ? games.map(coopLine).join("\n") : "_None yet_");
     lines.push("");
   }
   if (!lines.length) return "The co-op list is empty. Add a game with `/coop set`.";
 
+  const credit = rows.some((r) => statsText(r)) ? `\n\n${RAWG_CREDIT}` : "";
+  maxLength -= credit.length;
   let text = lines.join("\n").trim();
   if (text.length > maxLength) {
     const cut = text.lastIndexOf("\n", maxLength - 40);
@@ -79,7 +94,7 @@ export function coopListMessage(rows, onlyStatus = null, maxLength = MAX_MESSAGE
     const hidden = text.slice(cut).split("\n").filter((l) => l.startsWith("• ")).length;
     text = `${shown}\n…and ${hidden} more`;
   }
-  return text;
+  return text + credit;
 }
 
 // The post kept in the co-op channel: a heading, what changed last, then the list.
@@ -140,7 +155,14 @@ export async function handleCoopCommand(interaction, env, ctx) {
     const change = previous
       ? `${shown}: ${statusText(previous)} → ${statusText(status)}`
       : `${shown} added as ${statusText(status)}`;
-    afterReply(ctx, refreshCoopBoard(env, userId ? `${change}, by <@${userId}>` : change));
+    // A game Botdog hasn't looked up yet gets its RAWG details first, so they
+    // show on the updated list.
+    afterReply(
+      ctx,
+      lookUpIfNew(env, name)
+        .catch((err) => console.error(`RAWG lookup for "${name}" failed:`, err.message))
+        .then(() => refreshCoopBoard(env, userId ? `${change}, by <@${userId}>` : change))
+    );
     return reply(
       previous
         ? `${shown}: ${statusText(previous)} → ${statusText(status)}`

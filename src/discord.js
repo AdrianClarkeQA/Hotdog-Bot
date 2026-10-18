@@ -52,12 +52,30 @@ export async function moveChannel(env, channelId, parentId) {
 
 // Post a message in a channel. allowed_mentions parse [] means nothing in the
 // text pings anyone (e.g. a game named "@everyone"), and SUPPRESS_EMBEDS (4)
-// stops links in game names unfurling.
-export async function postMessage(env, channelId, content) {
+// stops links in game names unfurling. A message with its own embeds (game
+// details) can't use SUPPRESS_EMBEDS, as that would hide them too.
+export async function postMessage(env, channelId, content, { embeds } = {}) {
   return rest(env, "POST", `/channels/${channelId}/messages`, {
     content,
     allowed_mentions: { parse: [] },
-    flags: 4,
+    ...(embeds?.length ? { embeds } : { flags: 4 }),
+  });
+}
+
+// Change a message Botdog posted (e.g. add game details once RAWG answers).
+export async function editMessage(env, channelId, messageId, body) {
+  return rest(env, "PATCH", `/channels/${channelId}/messages/${messageId}`, {
+    allowed_mentions: { parse: [] },
+    ...body,
+  });
+}
+
+// Fill in the reply to a command Botdog answered with "thinking…" (a deferred
+// reply), using the interaction's own token.
+export async function editOriginalReply(env, interaction, body) {
+  return rest(env, "PATCH", `/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`, {
+    allowed_mentions: { parse: [] },
+    ...body,
   });
 }
 
