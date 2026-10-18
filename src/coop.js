@@ -65,7 +65,7 @@ export function pickRandom(items, random = Math.random) {
 // link unfurling into a preview.
 export const RAWG_CREDIT = `Game data from [RAWG](<${RAWG_SITE}>)`;
 
-// One game on the list: its name, then Metacritic and playtime when RAWG has them.
+// One game on the list: its name, then its Metacritic score in italics when RAWG has one.
 export function coopLine(row) {
   const stats = statsText(row);
   return `• ${escapeMarkdown(row.name)}${stats ? ` · ${stats}` : ""}`;

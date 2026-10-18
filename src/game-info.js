@@ -31,11 +31,10 @@ export function formatReleased(released) {
 
 export const formatPlaytime = (hours) => (hours ? `${hours}h avg playtime` : null);
 
-// "Metacritic 84 · 18h avg playtime" for the co-op list. Empty when RAWG has neither.
+// "*Metacritic 84*" (italic) for the co-op list. Empty when RAWG has no score.
+// Playtime is left out of the list: RAWG's averages aren't reliable enough.
 export function statsText(row) {
-  return [row?.metacritic ? `Metacritic ${row.metacritic}` : null, formatPlaytime(row?.playtime)]
-    .filter(Boolean)
-    .join(" · ");
+  return row?.metacritic ? `*Metacritic ${row.metacritic}*` : "";
 }
 
 // Shortens RAWG's long description to a couple of sentences.
