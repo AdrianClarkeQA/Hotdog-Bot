@@ -81,6 +81,30 @@ export async function setCoopStatus(env, name, status, userId) {
   return { name: before?.name ?? display, previous: before?.coop_status ?? null };
 }
 
+// Botdog's posts of the co-op list in the co-op channel. Normally just one;
+// more only while a newer post is replacing an older one.
+export async function recordBoardPost(env, channelId, messageId) {
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO coop_board_posts (message_id, channel_id, posted_at) VALUES (?, ?, ?)"
+  )
+    .bind(messageId, channelId, Date.now())
+    .run();
+}
+
+// Every recorded post except the newest. Discord message ids grow over time,
+// so the largest id is the newest post, whichever request recorded it first.
+export async function olderBoardPosts(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT message_id, channel_id FROM coop_board_posts
+     WHERE message_id != (SELECT message_id FROM coop_board_posts ORDER BY CAST(message_id AS INTEGER) DESC LIMIT 1)`
+  ).all();
+  return results ?? [];
+}
+
+export async function forgetBoardPost(env, messageId) {
+  await env.DB.prepare("DELETE FROM coop_board_posts WHERE message_id = ?").bind(messageId).run();
+}
+
 // Games on the co-op list, optionally only those with one status, A–Z.
 export async function listCoopGames(env, status = null) {
   const { results } = status
