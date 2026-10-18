@@ -236,9 +236,39 @@ Actions** and add:
   a D1 permissions error.
 - `CLOUDFLARE_ACCOUNT_ID` — shown in the Cloudflare dashboard (Workers & Pages
   overview, right-hand side).
+- `DISCORD_TOKEN` — the same bot token as in Cloudflare. Only used to post the
+  command list (see **Command list post** below).
 
-Bot secrets (`DISCORD_TOKEN` etc.) stay in Cloudflare and are not needed in
-GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+Other bot secrets stay in Cloudflare and are not needed in GitHub. D1 schema changes are still applied manually — see **Upgrading**.
+
+#### Command list post
+When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
+2.0.0), the workflow runs `scripts/post-commands-pin.js`. It posts
+`docs/commands-pin.md` in the commands channel (`COMMANDS_CHANNEL_ID` in
+`deploy.yml`), pins it, then deletes Botdog's previous command list.
+
+- Patch releases (1.8.0 to 1.8.1) and re-runs of an already-tagged version
+  don't post.
+- `{{VERSION}}` in the file is replaced with the version from `package.json`.
+- Over 2,000 characters, the list is split between version sections into
+  several messages; later ones start with "**Botdog commands (continued)**".
+- The new list is posted before the old one is deleted. Old lists are found by
+  being Botdog's own messages starting with "**Botdog commands**", so other
+  messages are never touched. If posting fails, the old list stays and the
+  deploy still succeeds.
+- Botdog needs **View Channel**, **Send Messages**, **Read Message History**
+  and **Pin Messages** in that channel.
+- To repost without a new version: **Actions → Deploy Botdog → Run workflow**,
+  tick **Repost the command list**, then **Run workflow**.
+- Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
+- When a release adds or changes commands, update `docs/commands-pin.md` in the
+  same pull request.
+
+### Upgrading to v1.8.0
+v1.8.0 posts the command list automatically on major and minor releases.
+1. Add the `DISCORD_TOKEN` repository secret in GitHub (see above).
+2. Give Botdog the four permissions above in the commands channel.
+3. No database or command changes. Merging v1.8.0 posts the first list.
 
 ### Upgrading to v1.7.0
 v1.7.0 adds the co-op list post. Before the v1.7.0 code goes live:

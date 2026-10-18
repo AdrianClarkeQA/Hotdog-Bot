@@ -7,6 +7,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      post_commands:
+        description: "Repost the command list in Discord even if the version hasn't changed"
+        type: boolean
+        default: false
 
 # Never run two deploys at once; a newer push waits for the current one.
 concurrency:
@@ -39,6 +44,25 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
 
+      # Decides whether this deploy is a new major or minor version (e.g. 1.7.x -> 1.8.0)
+      # compared with the newest version tag, before this run adds its own tag.
+      - name: Check release type
+        id: release
+        env:
+          FORCE_POST: ${{ inputs.post_commands }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          PREVIOUS="$(git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's#.*refs/tags/##' | sort -V | tail -n 1)"
+          if [ "$FORCE_POST" = "true" ]; then
+            POST=true
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            POST=false
+          else
+            POST="$(node -e "import('./scripts/post-commands-pin.js').then(m => console.log(m.isMajorOrMinorBump(process.argv[1], process.argv[2])))" "$PREVIOUS" "$VERSION")"
+          fi
+          echo "Previous version tag: ${PREVIOUS:-none}. This version: v$VERSION. Post command list: $POST"
+          echo "post_commands=$POST" >> "$GITHUB_OUTPUT"
+
       # Tags the commit with the version from package.json (e.g. v1.1.0)
       # the first time that version is deployed.
       - name: Tag release version
@@ -53,3 +77,13 @@ jobs:
             git push origin "$VERSION"
             echo "Tagged $VERSION"
           fi
+
+      # Posts the command list (docs/commands-pin.md) in the commands channel and
+      # deletes the previous one. A failure here doesn't fail the deploy.
+      - name: Post command list in Discord
+        if: steps.release.outputs.post_commands == 'true'
+        continue-on-error: true
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          COMMANDS_CHANNEL_ID: "1560736353094992033"
+        run: node scripts/post-commands-pin.js
