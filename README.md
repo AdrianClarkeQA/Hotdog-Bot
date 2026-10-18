@@ -154,9 +154,10 @@ and game details are simply left out.
   asks RAWG, then fills in the card.
 - **`/gaming` posts** get a small details box under the announcement:
   Metacritic score, co-op modes, average playtime and a thumbnail.
-- **The co-op list** (`/coop list` and the list post) shows each game as
-  `Helldivers 2 · Metacritic 82 · 18h avg playtime`, leaving out whatever RAWG
-  doesn't have.
+- **The co-op list** (`/coop list` and the list post) shows each game's
+  Metacritic score in italics, e.g. `Helldivers 2 · *Metacritic 82*`, or just
+  the name if RAWG has no score. Average playtime isn't shown in the list, as
+  RAWG's figures aren't reliable enough.
 
 **How games are matched**
 
@@ -321,6 +322,12 @@ When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 - Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
+
+### Upgrading to v1.10.1
+v1.10.1 restyles the co-op list: Metacritic scores are in italics and average
+playtime is no longer shown. No database or command changes. As a patch
+release it doesn't repost the command list. The co-op list post picks up the
+new style the next time a game's status changes.
 
 ### Upgrading to v1.10.0
 v1.10.0 adds game details from RAWG: `/games info`, `/games link`,

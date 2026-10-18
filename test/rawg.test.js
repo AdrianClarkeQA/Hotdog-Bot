@@ -109,16 +109,16 @@ test("slugFromLink reads RAWG page links and bare slugs", () => {
 test("formatReleased, statsText and shortDescription", () => {
   assert.equal(formatReleased("2020-05-13"), "13 May 2020");
   assert.equal(formatReleased("TBA"), "TBA");
-  assert.equal(statsText({ metacritic: 84, playtime: 18 }), "Metacritic 84 · 18h avg playtime");
-  assert.equal(statsText({ metacritic: null, playtime: 18 }), "18h avg playtime");
+  assert.equal(statsText({ metacritic: 84, playtime: 18 }), "*Metacritic 84*");
+  assert.equal(statsText({ metacritic: null, playtime: 18 }), "");
   assert.equal(statsText({}), "");
   const short = shortDescription(DRG_DETAIL.description_raw);
   assert.ok(short.length <= 350);
   assert.ok(short.endsWith("."));
 });
 
-test("co-op list lines spell out Metacritic and credit RAWG only when there's data", () => {
-  assert.equal(coopLine({ name: "Deep Rock Galactic", metacritic: 84, playtime: 7 }), "• Deep Rock Galactic · Metacritic 84 · 7h avg playtime");
+test("co-op list lines show Metacritic in italics, no playtime, and credit RAWG only when there's data", () => {
+  assert.equal(coopLine({ name: "Deep Rock Galactic", metacritic: 84, playtime: 7 }), "• Deep Rock Galactic · *Metacritic 84*");
   assert.equal(coopLine({ name: "Unknown" }), "• Unknown");
 
   const withData = coopListMessage([{ name: "DRG", coop_status: "ready", metacritic: 84, playtime: 7 }]);
@@ -299,7 +299,7 @@ test("/games link is admin only and re-points a saved game at the right RAWG gam
 
   // It's on the co-op list, so the list post is refreshed with the new details.
   const board = discord.calls.find((c) => c.path === "/channels/chan-coop/messages");
-  assert.match(board.body.content, /• DRG · Metacritic 84 · 7h avg playtime/);
+  assert.match(board.body.content, /• DRG · \*Metacritic 84\*$/m);
   assert.match(discord.calls.at(-1).body.content, /now uses RAWG's \*\*Deep Rock Galactic\*\*/);
 });
 
@@ -330,6 +330,6 @@ test("/coop set looks a new game up before updating the list post", async () => 
     },
   });
   const board = discord.calls.find((c) => c.path === "/channels/chan-coop/messages");
-  assert.match(board.body.content, /• Deep Rock Galactic · Metacritic 84 · 7h avg playtime/);
+  assert.match(board.body.content, /• Deep Rock Galactic · \*Metacritic 84\*$/m);
   assert.match(board.body.content, /Game data from \[RAWG\]/);
 });
