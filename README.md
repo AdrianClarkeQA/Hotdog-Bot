@@ -249,6 +249,11 @@ v1.7.0 adds the co-op list post. Before the v1.7.0 code goes live:
 2. Set `COOP_CHANNEL_ID` in `wrangler.toml` to the "Co-op Gaming" channel's ID.
    Botdog needs **View Channel**, **Send Messages** and **Read Message History** there.
 3. No command changes, so there's no need to re-register commands.
+4. Optional, one time: import the co-op games and statuses from the Notion
+   "Co-op Gaming Suggestions" database (safe to run more than once):
+   ```bash
+   npx wrangler d1 execute hotdog-db --remote --file=./seeds/coop-from-notion.sql
+   ```
 
 ### Upgrading to v1.6.0
 v1.6.0 adds the co-op games list (`/coop`). Before the v1.6.0 code goes live:
