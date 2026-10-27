@@ -1,0 +1,18 @@
+# Labels applied to pull requests automatically by .github/workflows/label-prs.yml.
+# Only GitHub's standard labels are used. The others (duplicate, wontfix,
+# question, help wanted, good first issue, invalid, accessibility) are added by hand.
+
+# New features: branches named feature/...
+enhancement:
+  - head-branch: ['^feature/']
+
+# Fixes: branches named fix/...
+bug:
+  - head-branch: ['^fix/']
+
+# Documentation: branches named docs/..., or a PR that only changes docs/markdown files
+documentation:
+  - any:
+      - head-branch: ['^docs/']
+      - changed-files:
+          - any-glob-to-all-files: ['docs/**', '**/*.md']

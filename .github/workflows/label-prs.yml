@@ -1,0 +1,23 @@
+name: Label pull requests
+
+# Adds GitHub's standard labels to pull requests based on the branch name
+# and the files changed. Rules live in .github/labeler.yml.
+# pull_request_target runs the workflow from main, so it can label PRs;
+# it never checks out or runs the PR's own code.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/labeler@v7
+        with:
+          # Keep labels added by hand; only ever add, never remove.
+          sync-labels: false
