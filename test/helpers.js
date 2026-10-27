@@ -39,6 +39,7 @@ export function makeEnv(overrides = {}) {
     PRIVILEGED_ROLE_ID: ADMIN_ROLE,
     DEFAULT_DAYS: "30",
     GAMING_CHANNEL_ID: "chan-gaming",
+    VOICE_CHANNEL_ID: "chan-voice",
     TIMEZONE: "Europe/London",
     ...overrides,
   };
@@ -85,6 +86,8 @@ const member = (roles = []) => ({ roles, user: { id: "user-1" } });
 
 export const gamingCommand = (game, date, time, roles) => ({
   type: 2,
+  application_id: "app-1",
+  token: "tok-gaming",
   member: member(roles),
   channel_id: "chan-general",
   data: {

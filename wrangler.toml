@@ -2,7 +2,8 @@ name = "discord-channel-archiver"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
-# Sweep once per day at 03:00 UTC (cron times are always UTC on Cloudflare).
+# Once per day at 03:00 UTC (cron times are always UTC on Cloudflare): the
+# archive sweep, then deleting gaming-channel posts for past sessions.
 [triggers]
 crons = ["0 3 * * *"]
 
@@ -24,9 +25,13 @@ DEFAULT_DAYS = "30"
 # "true" = sweep only logs what it would archive/restore (watch with
 # `npx wrangler tail`). Set to "false" and redeploy to let it act.
 DRY_RUN = "false"
-# Channel where /gaming posts session announcements (right-click the channel
-# in Discord > Copy Channel ID). /gaming replies with a warning until it's set.
+# Channel ("gaming-chatter") where /gaming posts each session event's link
+# (right-click the channel in Discord > Copy Channel ID). Botdog needs View
+# Channel and Send Messages there. /gaming replies with a warning until it's set.
 GAMING_CHANNEL_ID = "1095788991602753536"
+# Voice channel ("voice-chat") /gaming creates its events in. Botdog's role
+# needs Create Events, View Channel and Connect there.
+VOICE_CHANNEL_ID = "1445545567085269144"
 # Timezone /gaming reads dates and times in. Discord then shows each viewer
 # the session in their own local time.
 TIMEZONE = "Europe/London"

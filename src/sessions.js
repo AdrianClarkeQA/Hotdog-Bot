@@ -1,5 +1,5 @@
-// Pure helpers for /gaming: date/time parsing, game-name tidying, and the
-// announcement text. No Discord or D1 calls here, so it's easy to test.
+// Pure helpers for /gaming: date/time parsing and game-name tidying.
+// No Discord or D1 calls here, so it's easy to test.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,7 +29,7 @@ function tzOffsetMs(utcMs, timeZone) {
 
 // Wall-clock time in a timezone -> UTC ms. Two passes so times either side of
 // a clock change land on the right offset.
-function zonedToUtcMs(y, mo, d, h, mi, timeZone) {
+export function zonedToUtcMs(y, mo, d, h, mi, timeZone) {
   const naive = Date.UTC(y, mo - 1, d, h, mi);
   const first = naive - tzOffsetMs(naive, timeZone);
   return naive - tzOffsetMs(first, timeZone);
@@ -59,6 +59,13 @@ function todayIn(nowMs, timeZone) {
   const mo = Number(p.month);
   const d = Number(p.day);
   return { y, mo, d, dow: new Date(Date.UTC(y, mo - 1, d)).getUTCDay() };
+}
+
+// Midnight at the start of today in the given timezone, as UTC ms.
+// The nightly clean-up removes posts for sessions that started before this.
+export function startOfDayMs(now, timeZone) {
+  const { y, mo, d } = todayIn(now, timeZone);
+  return zonedToUtcMs(y, mo, d, 0, 0, timeZone);
 }
 
 // Calendar date `days` after y/mo/d.
@@ -169,15 +176,4 @@ export function gameKey(raw) {
 // Escapes characters that would break Discord formatting inside **bold**.
 export function escapeMarkdown(text) {
   return String(text).replace(/([\\*_~`|])/g, "\\$1");
-}
-
-// The announcement posted in the gaming channel.
-// With no game, the post says the game is still to be decided.
-export function sessionMessage({ game, unix, userId }) {
-  const title = game ? `**${escapeMarkdown(game)}** session` : "**Gaming session**";
-  return (
-    `🎮 ${title} planned for <t:${unix}:F> (<t:${unix}:R>)` +
-    (game ? "" : "\nGame to be decided") +
-    (userId ? `\nCreated by <@${userId}>` : "")
-  );
 }

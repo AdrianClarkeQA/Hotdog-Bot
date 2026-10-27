@@ -151,14 +151,24 @@ let discord;
 let rawgCalls;
 afterEach(() => discord?.restore());
 
-// Fakes Discord (via mockDiscord) and RAWG together. `rawg(path, params)`
-// returns the JSON for a RAWG request, or null for a 404.
+let imageCalls;
+// A tiny valid PNG, standing in for RAWG's cover images.
+const PNG = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"));
+
+// Fakes Discord (via mockDiscord), RAWG and RAWG's image server together.
+// `rawg(path, params)` returns the JSON for a RAWG request, or null for a 404.
+// Every image on media.rawg.io is the tiny PNG.
 function mockBoth(rawg, discordHandler) {
   discord = mockDiscord(discordHandler);
   rawgCalls = [];
+  imageCalls = [];
   const fakeDiscord = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     const u = new URL(url);
+    if (u.hostname === "media.rawg.io") {
+      imageCalls.push(u.pathname);
+      return new Response(PNG, { status: 200, headers: { "content-type": "image/png" } });
+    }
     if (u.hostname !== "api.rawg.io") return fakeDiscord(url, init);
     assert.equal(u.searchParams.get("key"), "test-rawg-key");
     const params = Object.fromEntries(u.searchParams);
@@ -186,33 +196,85 @@ const gameOpt = (value) => ({ name: "game", type: 3, value });
 const future = new Date(Date.now() + 3 * 86400000);
 const DATE = `${future.getUTCDate()}/${future.getUTCMonth() + 1}/${future.getUTCFullYear()}`;
 
-test("/gaming with a new game posts first, then adds RAWG details to the post", async () => {
+const eventCall = (i = 0) => discord.calls.filter((c) => c.path === "/guilds/guild-1/scheduled-events")[i];
+const gamingAnswer = () =>
+  discord.calls.filter((c) => c.path === "/webhooks/app-1/tok-gaming/messages/@original").at(-1)?.body.content;
+
+test("/gaming with a new game looks it up on RAWG first, so its first event has a cover and details", async () => {
   const env = makeEnv({ RAWG_API_KEY: "test-rawg-key" });
   mockBoth(drgRawg);
-  const r = await send(env, gamingCommand("deep rock galactic", DATE, "20:00"));
-  assert.match(r.data.content, /^✅ Posted/);
+  await send(env, gamingCommand("deep rock galactic", DATE, "20:00"));
+  assert.match(gamingAnswer(), /^Event created/);
 
-  const [post, edit] = discord.calls;
-  assert.equal(post.path, "/channels/chan-gaming/messages");
-  assert.equal(post.body.flags, 4); // nothing known yet: no details box
-  assert.equal(edit.method, "PATCH");
-  assert.equal(edit.path, "/channels/chan-gaming/messages/msg-1");
-  assert.equal(edit.body.flags, 0);
-  assert.equal(edit.body.embeds[0].description, "Metacritic 84 · Online co-op");
+  const ev = eventCall().body;
+  assert.match(ev.name, /deep rock galactic/); // the spelling typed the first time
+  assert.equal(
+    ev.description,
+    [
+      "Genres: Indie, Action",
+      "Platforms: PC, PlayStation, Xbox",
+      "Co-op: Online co-op",
+      "Released: 13 May 2020",
+      "Metacritic: 84",
+      "",
+      "Game data from RAWG: https://rawg.io/games/deep-rock-galactic",
+    ].join("\n")
+  );
+  assert.ok(!/playtime/i.test(ev.description));
+  assert.equal(ev.image, `data:image/png;base64,${Buffer.from(PNG).toString("base64")}`);
+  // RAWG's smaller copy of the image is used.
+  assert.deepEqual(imageCalls, ["/media/resize/640/-/games/c92/drg.jpg"]);
 
   const saved = env.DB.raw.prepare("SELECT rawg_id, metacritic, rawg_checked_at FROM games").get();
   assert.equal(saved.rawg_id, 9551);
   assert.equal(saved.metacritic, 84);
   assert.ok(saved.rawg_checked_at);
 
-  // Second session: details go straight into the post, no new RAWG lookup.
+  // Second session: details come from the saved game, no new RAWG lookup.
   rawgCalls.length = 0;
-  discord.calls.length = 0;
   await send(env, gamingCommand("Deep Rock Galactic", DATE, "21:00"));
   assert.equal(rawgCalls.length, 0);
-  assert.equal(discord.calls.length, 1);
-  assert.equal(discord.calls[0].body.flags, undefined);
-  assert.equal(discord.calls[0].body.embeds[0].title, "Deep Rock Galactic");
+  assert.match(eventCall(1).body.description, /^Genres: Indie, Action/);
+  assert.ok(eventCall(1).body.image);
+});
+
+test("/gaming falls back to RAWG's full-size image, then to no cover", async () => {
+  const env = makeEnv({ RAWG_API_KEY: "test-rawg-key" });
+  mockBoth(drgRawg);
+  const withImages = globalThis.fetch;
+  let failResized = true;
+  let failAll = false;
+  globalThis.fetch = async (url, init) => {
+    const u = new URL(url);
+    if (u.hostname === "media.rawg.io" && (failAll || (failResized && u.pathname.includes("/resize/")))) {
+      imageCalls.push(u.pathname);
+      return new Response("not found", { status: 404 });
+    }
+    return withImages(url, init);
+  };
+
+  await send(env, gamingCommand("Deep Rock Galactic", DATE, "20:00"));
+  assert.deepEqual(imageCalls, ["/media/resize/640/-/games/c92/drg.jpg", "/media/games/c92/drg.jpg"]);
+  assert.ok(eventCall(0).body.image.startsWith("data:image/png;base64,"));
+
+  failAll = true;
+  await send(env, gamingCommand("Deep Rock Galactic", DATE, "21:00"));
+  assert.equal(eventCall(1).body.image, undefined);
+  assert.ok(eventCall(1).body.description); // details still there
+  assert.match(gamingAnswer(), /^Event created/);
+});
+
+test("/gaming retries without the cover if Discord rejects it", async () => {
+  const env = makeEnv({ RAWG_API_KEY: "test-rawg-key" });
+  mockBoth(drgRawg, (method, path, body) => {
+    if (path !== "/guilds/guild-1/scheduled-events") return null;
+    return body.image ? { status: 400, json: { message: "Invalid image" } } : { status: 200, json: { id: "event-1" } };
+  });
+  await send(env, gamingCommand("Deep Rock Galactic", DATE, "20:00"));
+  assert.ok(eventCall(0).body.image);
+  assert.equal(eventCall(1).body.image, undefined);
+  assert.ok(eventCall(1).body.description);
+  assert.match(gamingAnswer(), /^Event created/);
 });
 
 test("/gaming doesn't retry RAWG for a game it couldn't find", async () => {
@@ -220,19 +282,20 @@ test("/gaming doesn't retry RAWG for a game it couldn't find", async () => {
   mockBoth(() => ({ results: [] }));
   await send(env, gamingCommand("Our Homebrew Game", DATE, "20:00"));
   assert.equal(rawgCalls.length, 1);
-  assert.equal(discord.calls.length, 1); // posted, no edit
+  assert.equal(eventCall().body.description, undefined);
+  assert.equal(eventCall().body.image, undefined);
   await send(env, gamingCommand("Our Homebrew Game", DATE, "21:00"));
   assert.equal(rawgCalls.length, 1);
 });
 
-test("/gaming still posts when RAWG is down", async () => {
+test("/gaming still creates the event when RAWG is down", async () => {
   const env = makeEnv({ RAWG_API_KEY: "test-rawg-key" });
   mockBoth(() => {
     throw new Error("network down");
   });
-  const r = await send(env, gamingCommand("Halo", DATE, "20:00"));
-  assert.match(r.data.content, /^✅ Posted/);
-  assert.equal(discord.calls.length, 1);
+  await send(env, gamingCommand("Halo", DATE, "20:00"));
+  assert.match(gamingAnswer(), /^Event created/);
+  assert.equal(eventCall().body.description, undefined);
 });
 
 test("/games info answers 'thinking', then fills in the details card", async () => {

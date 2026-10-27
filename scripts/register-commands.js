@@ -97,7 +97,7 @@ const arc = {
 // Discord needs required options before optional ones, so game comes last.
 const gaming = {
   name: "gaming",
-  description: "Post a planned gaming session",
+  description: "Create a gaming session event in voice-chat",
   options: [
     {
       type: STRING,

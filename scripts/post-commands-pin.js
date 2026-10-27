@@ -17,14 +17,17 @@ const DIVIDER = /^-{3,}$/;
 
 // ---------- pure helpers (tested in test/commands-pin.test.js) ----------
 
+// Also turns Windows line endings (\r\n, which Git can give the file on a
+// Windows checkout) into plain \n, so the section dividers are recognised.
 export function fillVersion(template, version) {
-  return template.replaceAll("{{VERSION}}", version).trim();
+  return template.replace(/\r\n?/g, "\n").replaceAll("{{VERSION}}", version).trim();
 }
 
 // Splits the list into messages of at most `max` characters. Splits only
 // between version sections (each section is a heading line with a divider
 // line under it), and starts every extra message with a "(continued)" heading.
 export function splitIntoMessages(text, max = MAX_LENGTH) {
+  text = text.replace(/\r\n?/g, "\n");
   if (text.length <= max) return [text];
 
   const lines = text.split("\n");

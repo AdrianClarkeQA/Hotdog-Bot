@@ -1,7 +1,7 @@
 {
   "name": "discord-channel-archiver",
-  "version": "1.10.2",
-  "description": "Cloudflare Worker that auto-archives inactive Discord channels, posts planned gaming sessions, tracks co-op games, shows game details from RAWG and saves quotes.",
+  "version": "1.11.0",
+  "description": "Cloudflare Worker that auto-archives inactive Discord channels, creates gaming session events, tracks co-op games, shows game details from RAWG and saves quotes.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -21,6 +21,8 @@
     "db:migrate:coopboard:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0005_add_coop_board.sql",
     "db:migrate:rawg": "wrangler d1 execute hotdog-db --remote --file=./migrations/0006_add_rawg.sql",
     "db:migrate:rawg:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0006_add_rawg.sql",
+    "db:migrate:events": "wrangler d1 execute hotdog-db --remote --file=./migrations/0007_add_session_posts.sql",
+    "db:migrate:events:local": "wrangler d1 execute hotdog-db --local --file=./migrations/0007_add_session_posts.sql",
     "test": "node --test --no-warnings \"test/*.test.js\""
   },
   "dependencies": {

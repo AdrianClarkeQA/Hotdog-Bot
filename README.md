@@ -1,7 +1,7 @@
 # Discord Channel Archiver
 
 A Cloudflare Worker that automatically archives inactive Discord channels and
-restores them when activity returns, posts planned gaming sessions, tracks co-op games, shows game details from RAWG, and saves quotes. Config is per-channel, controlled from
+restores them when activity returns, creates gaming session events, tracks co-op games, shows game details from RAWG, and saves quotes. Config is per-channel, controlled from
 Discord by a privileged role.
 
 ## How it works
@@ -11,7 +11,8 @@ WebSocket), so this uses two Worker entry points instead:
 
 - **`scheduled()`** — a **cron trigger** fires once a day (03:00 UTC), checks each
   monitored channel's last-message timestamp, and archives stale channels /
-  restores active ones.
+  restores active ones. It then deletes `/gaming` event posts for sessions
+  that started on an earlier day (see **Gaming sessions**).
 - **`fetch()`** — receives Discord slash-command **interactions** over HTTP,
   verifies the signature, and updates config in **D1**.
 
@@ -55,23 +56,49 @@ quiet channel isn't swept straight back into the archive the next morning.
 
 | Command | Who | Effect |
 |---|---|---|
-| `/gaming <date> <time> [game]` | Everyone | Posts a planned session in the gaming channel |
+| `/gaming <date> <time> [game]` | Everyone | Creates a session event in the voice channel and posts its link in the gaming channel |
 | `/games info <game>` | Everyone | Posts a game's details card (see **Game details**) |
 | `/games remove <game>` | Privileged role | Removes a game from the saved list |
 | `/games link <game> <rawg link>` | Privileged role | Matches a saved game to the right game on RAWG |
 | `/games refresh` | Privileged role | Looks up RAWG details for saved games that don't have them |
 
-`/gaming` posts in the channel set by `GAMING_CHANNEL_ID`, wherever it's typed:
+`/gaming` (v1.11.0 onwards), wherever it's typed:
 
-> 🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)
-> Created by @Ade
+1. Creates a Discord **voice event** in the channel set by `VOICE_CHANNEL_ID`
+   (`voice-chat`) at the date and time given. There's no end time. The event
+   stays "Scheduled" until someone opens it in Discord and presses **Start**;
+   Discord cancels an event that isn't started within a few hours of its start
+   time.
+2. Gives it a random title, never the same one as the previous session, from
+   `GAME_TITLES` in `src/events.js` (e.g. "Helldivers 2 night", "Squad up:
+   Helldivers 2"), or from `NO_GAME_TITLES` when no game was given. Edit those
+   lists to add or remove titles. Long game names are shortened to fit
+   Discord's 100-character limit.
+3. Adds the game's RAWG cover image and a description (genres, platforms,
+   co-op modes, release date, Metacritic score and a link back to RAWG). A game
+   RAWG doesn't know, or no game at all, gets an event with no cover or
+   description.
+4. Posts the event's link in the channel set by `GAMING_CHANNEL_ID`
+   (`gaming-chatter`). Discord shows it as an event card with an
+   **Interested** button.
+
+Botdog shows "thinking…" while it does this (only you see it), then confirms,
+or says what went wrong. If the event can't be created (e.g. a missing
+permission) nothing is posted. If the event is created but the link can't be
+posted, the message includes the link so it can be shared by hand.
+
+**Clean-up**: each night at 03:00 UTC, Botdog deletes the link post of every
+session that started on an earlier day (UK dates). A 9pm session on the 27th
+is removed at 03:00 on the 28th; a session at 1am on the 28th stays until the
+night after. The events themselves are left alone. At most 10 posts are
+deleted a night; any more go the next night. Posts made before v1.11.0 aren't
+tracked and stay up.
 
 - **Game** (optional): pick from the saved list or type a new name. The list
-  fills itself: every game posted is saved. Most-used games are suggested
+  fills itself: every game used is saved. Most-used games are suggested
   first; matching is case-insensitive, so "helldivers 2" reuses the saved
-  "Helldivers 2". Leave it out to plan a session before picking a game; the
-  post then reads "**Gaming session** planned for ..." with "Game to be
-  decided" underneath, and nothing is added to the saved list.
+  "Helldivers 2". Leave it out to plan a session before picking a game;
+  nothing is then added to the saved list.
 - **Date**: `today`/`tonight`, `tomorrow` (or `tmrw`), a weekday (`Saturday`
   or `sat` — the next one; today's weekday means today if the time is still to
   come), `DD/MM/YYYY`, or `DD/MM` for the next occurrence.
@@ -82,7 +109,10 @@ quiet channel isn't swept straight back into the archive the next morning.
   shows the date and time Botdog picked, so a misread is easy to spot.
 - Past times, impossible dates and dates over a year away are rejected with a
   message only the poster sees.
-- The post never pings anyone, even if a game name contains `@everyone`.
+- The link post never pings anyone.
+- Botdog's role needs **Create Events**, **View Channel** and **Connect** on
+  the voice channel, and **View Channel** and **Send Messages** in the gaming
+  channel.
 
 ## Co-op games
 
@@ -152,8 +182,9 @@ and game details are simply left out.
   and a banner image. Works for any game, saved or not; looking up a game
   doesn't add it to the saved list. Botdog first shows "thinking…" while it
   asks RAWG, then fills in the card.
-- **`/gaming` posts** get a small details box under the announcement:
-  Metacritic score, co-op modes and a thumbnail.
+- **`/gaming` events** get the game's RAWG image as their cover, and a
+  description with genres, platforms, co-op modes, release date and
+  Metacritic score.
 - **The co-op list** (`/coop list` and the list post) shows each game's
   Metacritic score in italics, e.g. `Helldivers 2 · *Metacritic 82*`, or just
   the name if RAWG has no score.
@@ -162,9 +193,9 @@ and game details are simply left out.
 
 **How games are matched**
 
-- A game is looked up the first time it's saved: after its first `/gaming`
-  post (the details box is added to the post a moment later) or when it's
-  added with `/coop set` (before the list post updates). The result is saved,
+- A game is looked up the first time it's used: before its first `/gaming`
+  event is created (so even that one gets a cover) or when it's added with
+  `/coop set` (before the list post updates). The result is saved,
   so later posts don't ask RAWG again.
 - RAWG's search is fuzzy, so Botdog picks the result whose name matches and
   that's popular on RAWG. "Halo" matches Halo Infinite rather than a little
@@ -182,7 +213,7 @@ and game details are simply left out.
 **RAWG's terms**: the free plan allows 20,000 requests a month (Botdog uses a
 handful per new game) and asks for a link back to RAWG wherever its data is
 shown. Every card and details box links to the game's RAWG page and says
-"Data from RAWG"; the co-op list ends with a RAWG link when it shows any
+"Data from RAWG", each event description ends with a link to the game's RAWG page, the co-op list ends with a RAWG link when it shows any
 RAWG data.
 
 ## Quotes
@@ -323,6 +354,25 @@ When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 - Preview the messages locally: `DRY_RUN=1 node scripts/post-commands-pin.js`.
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
+
+### Upgrading to v1.11.0
+v1.11.0 changes `/gaming`: it creates a voice event in `voice-chat` and posts
+the event's link in `gaming-chatter` instead of a text post, and the nightly
+run deletes those posts the day after each session.
+1. In Discord, give Botdog's role **Create Events**, **View Channel** and
+   **Connect** on the `voice-chat` channel (channel settings → Permissions).
+2. `VOICE_CHANNEL_ID` in `wrangler.toml` is already set to `voice-chat`'s ID.
+3. Add the new table (safe to run more than once):
+   ```bash
+   npm run db:migrate:events
+   ```
+4. Merge to `main`; the GitHub Action deploys it.
+5. Re-register commands, so `/gaming` shows its new description:
+   ```powershell
+   $env:DISCORD_TOKEN="..."; $env:DISCORD_APPLICATION_ID="..."; $env:GUILD_ID="693032229936431104"; npm run register
+   ```
+Until step 3 is done, `/gaming` replies asking for the migration and creates
+nothing. Session posts from before v1.11.0 aren't deleted automatically.
 
 ### Upgrading to v1.10.2
 v1.10.2 removes average playtime from `/gaming` details boxes and the
