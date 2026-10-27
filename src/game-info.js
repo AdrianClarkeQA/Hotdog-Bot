@@ -1,5 +1,5 @@
-// Game details from RAWG in Discord: the /games info card, the details box on
-// /gaming posts, and the short italic "Metacritic 84" text used in
+// Game details from RAWG in Discord: the /games info card, the details box
+// shown by /games link, and the short italic "Metacritic 84" text used in
 // the co-op list. Plus the /games info, link and refresh commands.
 //
 //   /games info <game>              anyone; posts the game's details card
@@ -45,7 +45,7 @@ export function shortDescription(text, max = MAX_DESCRIPTION) {
   return `${cut.slice(0, cut.lastIndexOf(" "))}…`;
 }
 
-// The small details box under a /gaming post. Null if the game has no RAWG match.
+// The small details box shown by /games link. Null if the game has no RAWG match.
 export function sessionEmbed(row) {
   if (!row?.rawg_id) return null;
   const line = [
@@ -104,7 +104,7 @@ function reply(content) {
 
 // "Thinking…" reply: Discord waits up to 15 minutes for the real answer,
 // instead of the usual 3 seconds. Private (flags 64) unless `public`.
-function deferred(isPublic) {
+export function deferred(isPublic) {
   return {
     type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
     data: isPublic ? {} : { flags: 64 },
@@ -115,7 +115,7 @@ const opt = (options, name) => (options ?? []).find((o) => o.name === name)?.val
 
 // Sends the real answer to a deferred reply. A failure is logged; Discord then
 // shows "The application did not respond" in place of the answer.
-async function finish(env, interaction, body) {
+export async function finish(env, interaction, body) {
   try {
     await editOriginalReply(env, interaction, body);
   } catch (err) {

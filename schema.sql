@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS coop_board_posts (
   posted_at  INTEGER NOT NULL
 );
 
+-- /gaming event link posts in GAMING_CHANNEL_ID, deleted by the nightly
+-- clean-up the day after each session (v1.11.0).
+CREATE TABLE IF NOT EXISTS session_posts (
+  message_id     TEXT PRIMARY KEY,
+  channel_id     TEXT NOT NULL,
+  event_id       TEXT NOT NULL,
+  starts_at      INTEGER NOT NULL,   -- ms timestamp the session starts
+  title_template TEXT,
+  created_by     TEXT,
+  created_at     INTEGER NOT NULL,
+  removed_at     INTEGER             -- NULL = post still up
+);
+CREATE INDEX IF NOT EXISTS session_posts_to_remove ON session_posts (removed_at, starts_at);
+
 -- Single-row global switch. id is always 1.
 CREATE TABLE IF NOT EXISTS settings (
   id            INTEGER PRIMARY KEY CHECK (id = 1),

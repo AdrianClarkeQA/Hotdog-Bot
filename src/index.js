@@ -1,7 +1,8 @@
 // Worker entry point.
 //  - fetch():     verifies + handles Discord interactions (slash commands,
 //                 autocomplete, component clicks and pop-up form submissions)
-//  - scheduled(): runs the archive/restore sweep on the cron trigger
+//  - scheduled(): on the daily cron trigger, runs the archive/restore sweep,
+//                 then deletes gaming-channel posts for past sessions
 
 import { verifyKey, InteractionType, InteractionResponseType } from "discord-interactions";
 import { handleCommand, handleComponent } from "./commands.js";
@@ -16,6 +17,7 @@ import {
 } from "./quotes.js";
 import { handleCoopCommand, COOP_COMMANDS } from "./coop.js";
 import { runSweep } from "./sweep.js";
+import { cleanupSessionPosts } from "./events.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -85,9 +87,23 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runSweep(env));
+    ctx.waitUntil(runNightly(env));
   },
 };
+
+// The two nightly jobs run one after the other; one failing doesn't stop the other.
+export async function runNightly(env) {
+  try {
+    await runSweep(env);
+  } catch (err) {
+    console.error("Archive sweep failed:", err.message);
+  }
+  try {
+    await cleanupSessionPosts(env);
+  } catch (err) {
+    console.error("Session post clean-up failed:", err.message);
+  }
+}
 
 function json(obj) {
   return new Response(JSON.stringify(obj), {

@@ -21,7 +21,9 @@ async function rest(env, method, path, body) {
   }
 
   if (!res.ok && res.status !== 404) {
-    throw new Error(`Discord ${method} ${path} -> ${res.status}: ${await res.text()}`);
+    const err = new Error(`Discord ${method} ${path} -> ${res.status}: ${await res.text()}`);
+    err.status = res.status; // lets callers tell e.g. a missing permission (403) from a bad request (400)
+    throw err;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -53,13 +55,29 @@ export async function moveChannel(env, channelId, parentId) {
 // Post a message in a channel. allowed_mentions parse [] means nothing in the
 // text pings anyone (e.g. a game named "@everyone"), and SUPPRESS_EMBEDS (4)
 // stops links in game names unfurling. A message with its own embeds (game
-// details) can't use SUPPRESS_EMBEDS, as that would hide them too.
-export async function postMessage(env, channelId, content, { embeds } = {}) {
+// details) can't use SUPPRESS_EMBEDS, as that would hide them too, and nor can
+// a post whose link should show as a card (`unfurl`, e.g. an event link).
+export async function postMessage(env, channelId, content, { embeds, unfurl = false } = {}) {
+  const extra = embeds?.length ? { embeds } : unfurl ? {} : { flags: 4 };
   return rest(env, "POST", `/channels/${channelId}/messages`, {
     content,
     allowed_mentions: { parse: [] },
-    ...(embeds?.length ? { embeds } : { flags: 4 }),
+    ...extra,
   });
+}
+
+// Create a scheduled event in the server (POST /guilds/{id}/scheduled-events).
+// Needs Create Events, plus View Channel and Connect on a voice event's channel.
+// Returns the event; throws (with .status) if Discord refuses it.
+export async function createScheduledEvent(env, body) {
+  const event = await rest(env, "POST", `/guilds/${env.GUILD_ID}/scheduled-events`, body);
+  if (!event?.id) {
+    // rest() returns 404s instead of throwing: unknown server or channel.
+    const err = new Error(`Discord POST scheduled-events -> 404: ${JSON.stringify(event)}`);
+    err.status = 404;
+    throw err;
+  }
+  return event;
 }
 
 // Change a message Botdog posted (e.g. add game details once RAWG answers).

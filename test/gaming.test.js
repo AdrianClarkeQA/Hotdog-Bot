@@ -19,116 +19,206 @@ const DATE = `${future.getUTCDate()}/${future.getUTCMonth() + 1}/${future.getUTC
 
 const names = (r) => r.data.choices.map((c) => c.name);
 
-test("/gaming posts in the gaming channel with bold game and timestamps, no pings", async () => {
+// Fake Discord for /gaming: the event gets id "event-1", the link post "post-1".
+// `override(method, path, body)` can return a response to use instead.
+// Later posts get "post-2", "post-3"… like real, unique message ids.
+const api = (override = () => null) => {
+  let posts = 0;
+  return (method, path, body) => {
+    const o = override(method, path, body);
+    if (o) return o;
+    if (method === "POST" && path === "/guilds/guild-1/scheduled-events") return { status: 200, json: { id: "event-1" } };
+    if (method === "POST" && path === "/channels/chan-gaming/messages") return { status: 200, json: { id: `post-${++posts}` } };
+    return null;
+  };
+};
+const eventCalls = () => discord.calls.filter((c) => c.path === "/guilds/guild-1/scheduled-events");
+const linkPosts = () => discord.calls.filter((c) => c.path === "/channels/chan-gaming/messages");
+// The answer filled into the "thinking…" reply.
+const answer = () => discord.calls.filter((c) => c.path === "/webhooks/app-1/tok-gaming/messages/@original").at(-1)?.body.content;
+const LINK = "https://discord.com/events/guild-1/event-1";
+
+test("/gaming creates a voice event, posts its link, and confirms privately", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
+  discord = mockDiscord(api());
   const r = await send(env, gamingCommand("Helldivers 2", DATE, "20:00"));
 
-  assert.equal(r.type, 4);
-  assert.equal(r.data.flags, 64); // confirmation only visible to the poster
-  assert.match(r.data.content, /^✅ Posted in <#chan-gaming> for <t:\d+:F>\.$/);
+  assert.equal(r.type, 5); // "thinking…"
+  assert.equal(r.data.flags, 64); // only the person who ran it sees it
 
-  assert.equal(discord.calls.length, 1);
-  const { method, path, body } = discord.calls[0];
-  assert.equal(method, "POST");
-  assert.equal(path, "/channels/chan-gaming/messages");
-  assert.match(body.content, /^🎮 \*\*Helldivers 2\*\* session planned for <t:(\d+):F> \(<t:\1:R>\)\nCreated by <@user-1>$/);
-  assert.deepEqual(body.allowed_mentions, { parse: [] });
+  const [ev] = eventCalls();
+  assert.equal(ev.method, "POST");
+  assert.equal(ev.body.entity_type, 2); // voice event
+  assert.equal(ev.body.channel_id, "chan-voice");
+  assert.equal(ev.body.privacy_level, 2);
+  assert.equal(ev.body.scheduled_end_time, undefined); // no end time
+  assert.match(ev.body.name, /Helldivers 2/);
+  assert.ok(Date.parse(ev.body.scheduled_start_time) > Date.now());
+
+  const [post] = linkPosts();
+  assert.equal(post.body.content, LINK);
+  assert.equal(post.body.flags, undefined); // not suppressed, so Discord shows the event card
+  assert.deepEqual(post.body.allowed_mentions, { parse: [] });
+
+  assert.match(answer(), /^Event created for <t:\d+:F> and posted in <#chan-gaming>\.$/);
+
+  // Order: event, then link post, then the answer.
+  const order = discord.calls.map((c) => c.path);
+  assert.ok(order.indexOf("/guilds/guild-1/scheduled-events") < order.indexOf("/channels/chan-gaming/messages"));
+
+  const row = env.DB.raw.prepare("SELECT * FROM session_posts").get();
+  assert.equal(row.message_id, "post-1");
+  assert.equal(row.channel_id, "chan-gaming");
+  assert.equal(row.event_id, "event-1");
+  assert.equal(row.starts_at, Date.parse(ev.body.scheduled_start_time));
+  assert.equal(row.removed_at, null);
 });
 
 test("/gaming accepts 'tomorrow' and '9pm' end to end", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand("Halo", "tomorrow", "9pm"));
-  assert.match(r.data.content, /^✅ Posted in/);
-  assert.equal(discord.calls.length, 1);
-  const unix = Number(/<t:(\d+):F>/.exec(discord.calls[0].body.content)[1]);
-  assert.ok(unix * 1000 > Date.now());
+  discord = mockDiscord(api());
+  await send(env, gamingCommand("Halo", "tomorrow", "9pm"));
+  assert.equal(eventCalls().length, 1);
+  assert.ok(Date.parse(eventCalls()[0].body.scheduled_start_time) > Date.now());
+  assert.match(answer(), /^Event created/);
 });
 
 test("/gaming saves new games and counts repeat uses under one entry", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
+  discord = mockDiscord(api());
   await send(env, gamingCommand("Helldivers 2", DATE, "20:00"));
   await send(env, gamingCommand("  helldivers   2 ", DATE, "21:00"));
 
   const rows = env.DB.raw.prepare("SELECT name, uses, added_by FROM games").all();
   assert.deepEqual(rows.map((r) => ({ ...r })), [{ name: "Helldivers 2", uses: 2, added_by: "user-1" }]);
-  // The second post uses the saved spelling, not what was typed.
-  assert.match(discord.calls[1].body.content, /\*\*Helldivers 2\*\*/);
+  // The second event uses the saved spelling, not what was typed.
+  assert.match(eventCalls()[1].body.name, /Helldivers 2/);
 });
 
-test("/gaming with no game posts 'to be decided' and saves nothing", async () => {
+test("/gaming never uses the same title twice in a row", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand(undefined, DATE, "20:00"));
+  discord = mockDiscord(api());
+  const realRandom = Math.random;
+  Math.random = () => 0; // always the first title still allowed
+  try {
+    await send(env, gamingCommand("Halo", DATE, "20:00"));
+    await send(env, gamingCommand("Halo", DATE, "21:00"));
+    await send(env, gamingCommand("Halo", DATE, "22:00"));
+  } finally {
+    Math.random = realRandom;
+  }
+  const names = eventCalls().map((c) => c.body.name);
+  assert.deepEqual(names, ["Halo gaming", "Halo night", "Halo gaming"]);
+});
 
-  assert.match(r.data.content, /^✅ Posted in <#chan-gaming> for <t:\d+:F>\.$/);
-  assert.equal(discord.calls.length, 1);
-  assert.match(
-    discord.calls[0].body.content,
-    /^🎮 \*\*Gaming session\*\* planned for <t:(\d+):F> \(<t:\1:R>\)\nGame to be decided\nCreated by <@user-1>$/
-  );
+test("/gaming with no game uses a 'no game' title and saves nothing", async () => {
+  const env = makeEnv();
+  discord = mockDiscord(api());
+  await send(env, gamingCommand(undefined, DATE, "20:00"));
+  const [ev] = eventCalls();
+  assert.ok(["Gaming session", "Game night", "Game night (game TBC)"].includes(ev.body.name));
+  assert.equal(ev.body.description, undefined);
+  assert.equal(ev.body.image, undefined);
+  assert.match(answer(), /^Event created/);
   assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 0);
 });
 
 test("/gaming with a blank game is treated as no game", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand("   ", DATE, "20:00"));
-  assert.match(r.data.content, /^✅ Posted in/);
-  assert.match(discord.calls[0].body.content, /Gaming session\*\* planned[\s\S]*Game to be decided/);
+  discord = mockDiscord(api());
+  await send(env, gamingCommand("   ", DATE, "20:00"));
+  assert.ok(!eventCalls()[0].body.name.includes("{game}"));
   assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 0);
 });
 
-test("/gaming with no game still rejects a bad date", async () => {
+test("/gaming bad input replies privately straight away and creates nothing", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand(undefined, "31/02/2027", "20:00"));
-  assert.match(r.data.content, /isn't a real date/);
-  assert.equal(discord.calls.length, 0);
-});
-
-test("/gaming escapes markdown and doesn't ping @everyone in game names", async () => {
-  const env = makeEnv();
-  discord = mockDiscord();
-  await send(env, gamingCommand("*Fortnite* @everyone", DATE, "20:00"));
-  const { body } = discord.calls[0];
-  assert.match(body.content, /\*\*\\\*Fortnite\\\* @everyone\*\*/);
-  assert.deepEqual(body.allowed_mentions, { parse: [] });
-});
-
-test("/gaming bad input replies privately and posts nothing", async () => {
-  const env = makeEnv();
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand("Halo", "31/02/2027", "20:00"));
-  assert.match(r.data.content, /isn't a real date/);
-  assert.equal(r.data.flags, 64);
+  discord = mockDiscord(api());
+  for (const [game, date, time, msg] of [
+    ["Halo", "31/02/2027", "20:00", /isn't a real date/],
+    [undefined, "31/02/2027", "20:00", /isn't a real date/],
+    ["Halo", DATE, "9", /am or pm/],
+  ]) {
+    const r = await send(env, gamingCommand(game, date, time));
+    assert.equal(r.type, 4);
+    assert.equal(r.data.flags, 64);
+    assert.match(r.data.content, msg);
+  }
   assert.equal(discord.calls.length, 0);
   assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 0);
 });
 
-test("/gaming with no channel configured warns instead of posting", async () => {
-  const env = makeEnv({ GAMING_CHANNEL_ID: "" });
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand("Halo", DATE, "20:00"));
+test("/gaming with no gaming or voice channel configured warns instead", async () => {
+  discord = mockDiscord(api());
+  let r = await send(makeEnv({ GAMING_CHANNEL_ID: "" }), gamingCommand("Halo", DATE, "20:00"));
   assert.match(r.data.content, /GAMING_CHANNEL_ID/);
+  r = await send(makeEnv({ VOICE_CHANNEL_ID: "" }), gamingCommand("Halo", DATE, "20:00"));
+  assert.match(r.data.content, /VOICE_CHANNEL_ID/);
   assert.equal(discord.calls.length, 0);
 });
 
-test("/gaming when Discord refuses the post: clear error, game not saved", async () => {
+test("/gaming when Botdog can't create events: permission error, nothing posted or saved", async () => {
   const env = makeEnv();
-  discord = mockDiscord(() => ({ status: 403, json: { message: "Missing Access" } }));
-  const r = await send(env, gamingCommand("Halo", DATE, "20:00"));
-  assert.match(r.data.content, /Couldn't post in <#chan-gaming>/);
+  discord = mockDiscord(
+    api((m, p) => (p.endsWith("/scheduled-events") ? { status: 403, json: { message: "Missing Permissions", code: 50013 } } : null))
+  );
+  await send(env, gamingCommand("Halo", DATE, "20:00"));
+  assert.match(answer(), /doesn't have permission to create events in <#chan-voice>/);
+  assert.match(answer(), /Create Events, View Channel and Connect/);
+  assert.equal(linkPosts().length, 0);
   assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM games").get().n, 0);
+  assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM session_posts").get().n, 0);
+});
+
+test("/gaming when the voice channel ID is wrong: clear error", async () => {
+  const env = makeEnv();
+  discord = mockDiscord(api((m, p) => (p.endsWith("/scheduled-events") ? { status: 404, json: { message: "Unknown Channel" } } : null)));
+  await send(env, gamingCommand("Halo", DATE, "20:00"));
+  assert.match(answer(), /couldn't find the voice channel set in `VOICE_CHANNEL_ID`/);
+  assert.equal(linkPosts().length, 0);
+});
+
+test("/gaming when any other event error happens: error with the code", async () => {
+  const env = makeEnv();
+  discord = mockDiscord(api((m, p) => (p.endsWith("/scheduled-events") ? { status: 400, json: { message: "Invalid Form Body" } } : null)));
+  await send(env, gamingCommand("Halo", DATE, "20:00"));
+  assert.equal(answer(), "Discord wouldn't create the event (error 400). Nothing was posted.");
+});
+
+test("/gaming when the link can't be posted: error includes the event link", async () => {
+  const env = makeEnv();
+  discord = mockDiscord(api((m, p) => (p === "/channels/chan-gaming/messages" ? { status: 403, json: { message: "Missing Access" } } : null)));
+  await send(env, gamingCommand("Halo", DATE, "20:00"));
+  assert.match(answer(), /The event is created, but Botdog couldn't post it in <#chan-gaming>/);
+  assert.ok(answer().endsWith(LINK));
+  assert.equal(env.DB.raw.prepare("SELECT count(*) n FROM session_posts").get().n, 0);
+});
+
+test("/gaming before the database is updated: asks for the migration, creates nothing", async () => {
+  const env = makeEnv();
+  env.DB.raw.exec("DROP TABLE session_posts");
+  discord = mockDiscord(api());
+  await send(env, gamingCommand("Halo", DATE, "20:00"));
+  assert.match(answer(), /npm run db:migrate:events/);
+  assert.equal(eventCalls().length, 0);
+  assert.equal(linkPosts().length, 0);
+});
+
+test("/gaming doesn't ping or break on odd game names", async () => {
+  const env = makeEnv();
+  discord = mockDiscord(api());
+  await send(env, gamingCommand("*Fortnite* @everyone", DATE, "20:00"));
+  // Event names are plain text, so the name goes in as typed.
+  assert.match(eventCalls()[0].body.name, /\*Fortnite\* @everyone/);
+  assert.deepEqual(linkPosts()[0].body.allowed_mentions, { parse: [] });
+  assert.equal(linkPosts()[0].body.content, LINK);
 });
 
 test("/gaming works for members without the admin role", async () => {
   const env = makeEnv();
-  discord = mockDiscord();
-  const r = await send(env, gamingCommand("Halo", DATE, "20:00", []));
-  assert.match(r.data.content, /^✅ Posted in <#chan-gaming> for <t:\d+:F>\.$/);
+  discord = mockDiscord(api());
+  await send(env, gamingCommand("Halo", DATE, "20:00", []));
+  assert.match(answer(), /^Event created/);
 });
 
 test("autocomplete: empty box lists most-used games first", async () => {

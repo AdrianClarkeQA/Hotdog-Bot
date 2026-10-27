@@ -47,3 +47,7 @@ No new commands. This list now reposts itself here whenever a new version is rel
 `/games link <game> <rawg link>` - Match a saved game to the right game on RAWG *(privileged role only)*
 `/games refresh` - Look up details for saved games that don't have them yet *(privileged role only)*
 Session posts and the co-op list now show Metacritic scores, from RAWG
+
+**v1.11 - Session events**
+--------------------
+`/gaming <date> <time> [game]` - Now creates an event in voice-chat at that time, with the game's cover image and details, and posts the event in gaming-chatter. Press Start on the event when the session begins. Each post is removed the day after its session

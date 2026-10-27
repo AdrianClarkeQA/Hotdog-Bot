@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSessionTime, parseTime, gameKey, tidyGameName, escapeMarkdown, sessionMessage } from "../src/sessions.js";
+import { parseSessionTime, parseTime, gameKey, tidyGameName, escapeMarkdown, startOfDayMs } from "../src/sessions.js";
 
 // Fixed "now": Wed 14 Oct 2026 12:00 BST (11:00 UTC).
 const now = Date.UTC(2026, 9, 14, 11, 0);
@@ -138,16 +138,9 @@ test("markdown in game names is escaped so bold isn't broken", () => {
   assert.equal(escapeMarkdown("Halo_2 ~|`\\"), "Halo\\_2 \\~\\|\\`\\\\");
 });
 
-test("announcement text", () => {
-  assert.equal(
-    sessionMessage({ game: "Helldivers 2", unix: 1791992700, userId: "42" }),
-    "🎮 **Helldivers 2** session planned for <t:1791992700:F> (<t:1791992700:R>)\nCreated by <@42>"
-  );
-});
-
-test("announcement text with no game", () => {
-  assert.equal(
-    sessionMessage({ game: "", unix: 1791992700, userId: "42" }),
-    "🎮 **Gaming session** planned for <t:1791992700:F> (<t:1791992700:R>)\nGame to be decided\nCreated by <@42>"
-  );
+test("startOfDayMs is UK midnight, in both GMT and BST", () => {
+  // 03:00 GMT on 28 Oct 2026 (clocks went back on the 25th) -> midnight GMT.
+  assert.equal(startOfDayMs(Date.UTC(2026, 9, 28, 3, 0), "Europe/London"), Date.UTC(2026, 9, 28, 0, 0));
+  // 03:00 UTC on 1 Jul 2026 is 04:00 BST -> midnight BST is 23:00 UTC the day before.
+  assert.equal(startOfDayMs(Date.UTC(2026, 6, 1, 3, 0), "Europe/London"), Date.UTC(2026, 5, 30, 23, 0));
 });
