@@ -355,6 +355,20 @@ When a deploy is a new major or minor version (e.g. 1.7.x to 1.8.0, or to
 - When a release adds or changes commands, update `docs/commands-pin.md` in the
   same pull request.
 
+#### Pull request labels
+`.github/workflows/label-prs.yml` adds GitHub's standard labels to pull
+requests, using the rules in `.github/labeler.yml`:
+
+| Branch / change                          | Label           |
+|------------------------------------------|-----------------|
+| `feature/...`                            | `enhancement`   |
+| `fix/...`                                | `bug`           |
+| `docs/...`, or only docs/markdown files  | `documentation` |
+
+Labels are only added, never removed. The other standard labels (`duplicate`,
+`wontfix`, `question`, `help wanted`, `good first issue`, `invalid`,
+`accessibility`) are added by hand.
+
 ### Upgrading to v1.11.0
 v1.11.0 changes `/gaming`: it creates a voice event in `voice-chat` and posts
 the event's link in `gaming-chatter` instead of a text post, and the nightly
