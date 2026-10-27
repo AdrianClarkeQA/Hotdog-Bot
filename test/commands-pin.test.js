@@ -43,6 +43,15 @@ test("the real command list fills in the version and fits Discord's limit", asyn
   }
 });
 
+test("the command list splits the same with Windows line endings", async () => {
+  // Git on Windows can check the file out with \r\n line endings.
+  const template = await readFile(new URL("../docs/commands-pin.md", import.meta.url), "utf8");
+  const unix = splitIntoMessages(fillVersion(template, "1.11.0"));
+  const windows = splitIntoMessages(fillVersion(template.replace(/\r?\n/g, "\r\n"), "1.11.0"));
+  assert.deepEqual(windows, unix);
+  assert.ok(unix.length > 1);
+});
+
 test("a long list splits between version sections, never inside one", () => {
   const section = (n) =>
     `**v1.${n} - Thing ${n}**\n----------\n\`/cmd${n}\` - ${"x".repeat(80)}`;
